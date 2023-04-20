@@ -14,6 +14,6 @@ public interface KustoSinkContext {
     /** Returns the current process time in flink. */
     long processTime();
 
-    /** Returns the write options of MongoSink. */
+    /** Returns the write options of KustoSink. */
     KustoWriteOptions getWriteOptions();
 }
