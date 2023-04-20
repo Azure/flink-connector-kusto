@@ -1,12 +1,14 @@
 package com.microsoft.azure.kusto.writer.serializer;
 
-public class KustoRow {
-    private final String blobName;
+import java.io.Serializable;
 
-    private final Object[] values;
+public class KustoRow implements Serializable {
+  private final String blobName;
 
-    public KustoRow(String blobName, Object[] values) {
-        this.blobName = blobName;
-        this.values = values;
-    }
+  private final Object[] values;
+
+  public KustoRow(String blobName, Object[] values) {
+    this.blobName = blobName;
+    this.values = values;
+  }
 }
