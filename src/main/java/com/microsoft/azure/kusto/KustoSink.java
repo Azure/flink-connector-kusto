@@ -176,7 +176,6 @@ public class KustoSink<IN> {
         protected final TypeSerializer<IN> serializer;
         protected final TypeInformation<IN> typeInfo;
 
-
         public KustoSinkBuilder(DataStream<IN> input, TypeSerializer<IN> serializer, TypeInformation<IN> typeInfo) {
             this.connectionOptionsBuilder = KustoConnectionOptions.builder();
             this.input = input;
@@ -232,7 +231,7 @@ public class KustoSink<IN> {
     public static class KustoRowSinkBuilder extends KustoSinkBuilder<Row> {
 
         public KustoRowSinkBuilder(DataStream<Row> input, TypeSerializer<Row> serializer,
-                                   TypeInformation<Row> typeInfo) {
+                TypeInformation<Row> typeInfo) {
             super(input, serializer, typeInfo);
         }
     }

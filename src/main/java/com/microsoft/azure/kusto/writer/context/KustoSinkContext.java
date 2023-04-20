@@ -1,5 +1,4 @@
-package com.microsoft.azure.kusto.context;
-
+package com.microsoft.azure.kusto.writer.context;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink2.Sink;

@@ -19,6 +19,7 @@
     <log4j.version>2.17.1</log4j.version>
     <kusto.version>4.0.4</kusto.version>
     <junit5.version>5.8.1</junit5.version>
+    <impsort.version>1.8.0</impsort.version>
     <java.release.version>11</java.release.version>
     <assertj.version>3.23.1</assertj.version>
     <archunit.version>1.0.0</archunit.version>
@@ -27,7 +28,12 @@
     <byte-buddy.version>1.12.10</byte-buddy.version>
     <findbugs.version>1.3.9</findbugs.version>
     <flink.version>1.17.0</flink.version>
+    <dependency-check-maven.version>8.1.2</dependency-check-maven.version>
     <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
+    <jackson.version>2.14.2</jackson.version>
+    <woodstox.version>6.5.1</woodstox.version>
+    <commoncodec.version>1.15</commoncodec.version>
+    <formatter.version>2.20.0</formatter.version>
   </properties>
 
   <dependencies>
@@ -82,8 +88,39 @@
       <groupId>com.microsoft.azure.kusto</groupId>
       <artifactId>kusto-ingest</artifactId>
       <version>${kusto.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.woodstox</groupId>
+          <artifactId>woodstox-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>commons-codec</groupId>
+          <artifactId>commons-codec</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.woodstox</groupId>
+      <artifactId>woodstox-core</artifactId>
+      <version>${woodstox.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>commons-codec</groupId>
+      <artifactId>commons-codec</artifactId>
+      <version>${commoncodec.version}</version>
+    </dependency>
 
     <dependency>
       <groupId>com.microsoft.azure.kusto</groupId>
@@ -293,6 +330,41 @@
         <inherited>true</inherited>
         <configuration>
           <release>${java.release.version}</release>
+        </configuration>
+      </plugin>
+      <!-- Makes it easier to have consist import order -->
+      <plugin>
+        <groupId>net.revelc.code</groupId>
+        <artifactId>impsort-maven-plugin</artifactId>
+        <version>${impsort.version}</version>
+        <configuration>
+          <groups>java.,javax.,org.,com.</groups>
+          <removeUnused>true</removeUnused>
+          <staticAfter>true</staticAfter>
+          <!-- <staticGroups>java.,javax.,org.w3c.,org.xml.,junit.</staticGroups> -->
+        </configuration>
+        <executions>
+          <execution>
+            <id>sort-imports</id>
+            <goals>
+              <goal>sort</goal><!-- runs at process-sources phase by default -->
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.owasp</groupId>
+        <artifactId>dependency-check-maven</artifactId>
+        <version>${dependency-check-maven.version}</version>
+      </plugin>
+      <plugin>
+        <groupId>net.revelc.code.formatter</groupId>
+        <artifactId>formatter-maven-plugin</artifactId>
+        <version>${formatter.version}</version>
+        <configuration>
+          <configFile>${project.basedir}/formatter.xml</configFile>
+          <encoding>UTF-8</encoding>
+          <lineEnding>KEEP</lineEnding>
         </configuration>
       </plugin>
     </plugins>

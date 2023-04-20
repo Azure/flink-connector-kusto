@@ -1,11 +1,11 @@
 package com.microsoft.azure.kusto.config;
 
+import java.io.Serializable;
+import java.util.Objects;
+
 import org.apache.flink.annotation.PublicEvolving;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-
-import java.io.Serializable;
-import java.util.Objects;
 
 /** The connection configuration class for Kusto. */
 @PublicEvolving
@@ -22,7 +22,7 @@ public class KustoConnectionOptions implements Serializable {
     private final String managedIdentityAppId;
 
     private KustoConnectionOptions(String clusterUrl, String database, String table, String appId, String appKey,
-                                   String tenantId, boolean isManagedIdentity, String managedIdentityAppId) {
+            String tenantId, boolean isManagedIdentity, String managedIdentityAppId) {
         this.clusterUrl = checkNotNull(clusterUrl);
         this.database = checkNotNull(database);
         this.table = checkNotNull(table);
@@ -101,7 +101,8 @@ public class KustoConnectionOptions implements Serializable {
         private boolean isManagedIdentity;
         private String managedIdentityAppId;
 
-        private KustoConnectionOptionsBuilder() {}
+        private KustoConnectionOptionsBuilder() {
+        }
 
         /**
          * Sets the connection string of Kusto.
@@ -132,30 +133,28 @@ public class KustoConnectionOptions implements Serializable {
          * @return this builder
          */
         public KustoConnectionOptionsBuilder setTable(String table) {
-            this.table =
-                    checkNotNull(table, "The table of Kusto must not be null");
+            this.table = checkNotNull(table, "The table of Kusto must not be null");
             return this;
         }
 
         public KustoConnectionOptionsBuilder setAppId(String appId) {
             this.isManagedIdentity = true;
-            this.appId = checkNotNull(appId,"The appId for auth must not be null");
+            this.appId = checkNotNull(appId, "The appId for auth must not be null");
             return this;
         }
 
         public KustoConnectionOptionsBuilder setAppKey(String appKey) {
-            this.appKey = checkNotNull(appKey,"The app key for auth must not be null");
+            this.appKey = checkNotNull(appKey, "The app key for auth must not be null");
             return this;
         }
 
         public KustoConnectionOptionsBuilder setTenantId(String tenantId) {
-            this.tenantId = checkNotNull(tenantId,"The app key for auth must not be null");
+            this.tenantId = checkNotNull(tenantId, "The app key for auth must not be null");
             return this;
         }
 
-
         public KustoConnectionOptionsBuilder setManagedIdentityAppId(String managedIdentityAppId) {
-            this.managedIdentityAppId = checkNotNull(managedIdentityAppId,"The User managed identity for auth must not be null");
+            this.managedIdentityAppId = checkNotNull(managedIdentityAppId, "The User managed identity for auth must not be null");
             this.isManagedIdentity = true;
             return this;
         }
