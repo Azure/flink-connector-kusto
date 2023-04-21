@@ -1,4 +1,4 @@
-package com.microsoft.azure.kusto.config;
+package com.microsoft.azure.flink.config;
 
 import java.io.Serializable;
 import java.util.Objects;
@@ -91,13 +91,13 @@ public class KustoConnectionOptions implements Serializable {
     return Objects.hash(clusterUrl, database, table);
   }
 
-  public static KustoConnectionOptionsBuilder builder() {
-    return new KustoConnectionOptionsBuilder();
+  public static Builder builder() {
+    return new Builder();
   }
 
   /** Builder for {@link KustoConnectionOptions}. */
   @PublicEvolving
-  public static class KustoConnectionOptionsBuilder {
+  public static class Builder {
     private String clusterUrl;
     private String database;
     private String table;
@@ -105,10 +105,10 @@ public class KustoConnectionOptions implements Serializable {
     private String appId;
     private String appKey;
     private String tenantId;
-    private boolean isManagedIdentity;
+    private boolean isManagedIdentity = false;
     private String managedIdentityAppId;
 
-    private KustoConnectionOptionsBuilder() {}
+    private Builder() {}
 
     /**
      * Sets the connection string of Kusto.
@@ -116,7 +116,7 @@ public class KustoConnectionOptions implements Serializable {
      * @param clusterUrl connection string of Kusto
      * @return this builder
      */
-    public KustoConnectionOptionsBuilder setClusterUrl(String clusterUrl) {
+    public Builder setClusterUrl(String clusterUrl) {
       this.clusterUrl = clusterUrl;
       return this;
     }
@@ -127,7 +127,7 @@ public class KustoConnectionOptions implements Serializable {
      * @param database the database to sink of Kusto.
      * @return this builder
      */
-    public KustoConnectionOptionsBuilder setDatabase(String database) {
+    public Builder setDatabase(String database) {
       this.database = checkNotNull(database, "The database of Kusto must not be null");
       return this;
     }
@@ -138,28 +138,27 @@ public class KustoConnectionOptions implements Serializable {
      * @param table the table to sink of Kusto.
      * @return this builder
      */
-    public KustoConnectionOptionsBuilder setTable(String table) {
+    public Builder setTable(String table) {
       this.table = checkNotNull(table, "The table of Kusto must not be null");
       return this;
     }
 
-    public KustoConnectionOptionsBuilder setAppId(String appId) {
-      this.isManagedIdentity = true;
+    public Builder setAppId(String appId) {
       this.appId = checkNotNull(appId, "The appId for auth must not be null");
       return this;
     }
 
-    public KustoConnectionOptionsBuilder setAppKey(String appKey) {
+    public Builder setAppKey(String appKey) {
       this.appKey = checkNotNull(appKey, "The app key for auth must not be null");
       return this;
     }
 
-    public KustoConnectionOptionsBuilder setTenantId(String tenantId) {
+    public Builder setTenantId(String tenantId) {
       this.tenantId = checkNotNull(tenantId, "The app key for auth must not be null");
       return this;
     }
 
-    public KustoConnectionOptionsBuilder setManagedIdentityAppId(String managedIdentityAppId) {
+    public Builder setManagedIdentityAppId(String managedIdentityAppId) {
       this.managedIdentityAppId =
           checkNotNull(managedIdentityAppId, "The User managed identity for auth must not be null");
       this.isManagedIdentity = true;

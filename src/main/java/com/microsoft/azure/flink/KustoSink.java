@@ -1,4 +1,4 @@
-package com.microsoft.azure.kusto;
+package com.microsoft.azure.flink;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -10,7 +10,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.types.Row;
 
-import com.microsoft.azure.kusto.config.KustoConnectionOptions;
+import com.microsoft.azure.flink.config.KustoConnectionOptions;
 
 public class KustoSink<IN> {
     private final boolean useDataStreamSink;
@@ -170,7 +170,7 @@ public class KustoSink<IN> {
     }
 
     public static abstract class KustoSinkBuilder<IN> {
-        protected KustoConnectionOptions.KustoConnectionOptionsBuilder connectionOptionsBuilder;
+        protected KustoConnectionOptions.Builder connectionOptionsBuilder;
 
         protected final DataStream<IN> input;
         protected final TypeSerializer<IN> serializer;
@@ -183,7 +183,7 @@ public class KustoSink<IN> {
             this.typeInfo = typeInfo;
         }
 
-        public KustoSinkBuilder<IN> setConnectionOptions(KustoConnectionOptions.KustoConnectionOptionsBuilder connectionOptionsBuilder) {
+        public KustoSinkBuilder<IN> setConnectionOptions(KustoConnectionOptions.Builder connectionOptionsBuilder) {
             if (this.connectionOptionsBuilder != null) {
                 throw new IllegalArgumentException(
                         "Builder was already set. You must use either setHost() or setClusterBuilder().");

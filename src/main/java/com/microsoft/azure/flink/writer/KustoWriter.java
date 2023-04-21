@@ -1,4 +1,4 @@
-package com.microsoft.azure.kusto.writer;
+package com.microsoft.azure.flink.writer;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -16,15 +16,15 @@ import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkRuntimeException;
 
-import com.microsoft.azure.kusto.config.KustoConnectionOptions;
-import com.microsoft.azure.kusto.config.KustoWriteOptions;
+import com.microsoft.azure.flink.config.KustoConnectionOptions;
+import com.microsoft.azure.flink.config.KustoWriteOptions;
+import com.microsoft.azure.flink.writer.context.DefaultKustoSinkContext;
+import com.microsoft.azure.flink.writer.context.KustoSinkContext;
+import com.microsoft.azure.flink.writer.serializer.KustoRow;
+import com.microsoft.azure.flink.writer.serializer.KustoSerializationSchema;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
-import com.microsoft.azure.kusto.writer.context.DefaultKustoSinkContext;
-import com.microsoft.azure.kusto.writer.context.KustoSinkContext;
-import com.microsoft.azure.kusto.writer.serializer.KustoRow;
-import com.microsoft.azure.kusto.writer.serializer.KustoSerializationSchema;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

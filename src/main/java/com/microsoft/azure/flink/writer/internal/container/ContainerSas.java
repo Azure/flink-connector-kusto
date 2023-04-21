@@ -1,4 +1,4 @@
-package com.microsoft.azure.kusto.writer.internal.container;
+package com.microsoft.azure.flink.writer.internal.container;
 
 public class ContainerSas {
   private final String containerUrl;

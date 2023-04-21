@@ -1,4 +1,4 @@
-package com.microsoft.azure.kusto.writer.serializer;
+package com.microsoft.azure.flink.writer.serializer;
 
 import java.io.Serializable;
 

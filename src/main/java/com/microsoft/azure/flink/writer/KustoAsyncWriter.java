@@ -1,4 +1,4 @@
-package com.microsoft.azure.kusto.writer;
+package com.microsoft.azure.flink.writer;
 
 import java.util.Collection;
 import java.util.List;
@@ -14,8 +14,8 @@ import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.microsoft.azure.flink.writer.serializer.KustoRow;
 import com.microsoft.azure.kusto.ingest.IngestClient;
-import com.microsoft.azure.kusto.writer.serializer.KustoRow;
 
 public class KustoAsyncWriter<IN> extends AsyncSinkWriter<IN, KustoRow> {
 

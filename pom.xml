@@ -34,6 +34,7 @@
     <woodstox.version>6.5.1</woodstox.version>
     <commoncodec.version>1.15</commoncodec.version>
     <formatter.version>2.20.0</formatter.version>
+    <mvn.failsafe.plugin.version>3.0.0</mvn.failsafe.plugin.version>
   </properties>
 
   <dependencies>
@@ -179,6 +180,7 @@
       <version>${log4j.version}</version>
       <scope>test</scope>
     </dependency>
+
 
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
@@ -361,6 +363,24 @@
           <encoding>UTF-8</encoding>
           <lineEnding>KEEP</lineEnding>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>${mvn.failsafe.plugin.version}</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+            <configuration>
+              <includes>
+                <include>**/*IT.java</include>
+              </includes>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

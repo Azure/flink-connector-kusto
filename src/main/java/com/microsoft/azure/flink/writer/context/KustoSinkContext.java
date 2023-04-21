@@ -1,9 +1,9 @@
-package com.microsoft.azure.kusto.writer.context;
+package com.microsoft.azure.flink.writer.context;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink2.Sink;
 
-import com.microsoft.azure.kusto.config.KustoWriteOptions;
+import com.microsoft.azure.flink.config.KustoWriteOptions;
 
 @PublicEvolving
 public interface KustoSinkContext {

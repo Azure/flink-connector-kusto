@@ -1,8 +1,8 @@
-package com.microsoft.azure.kusto.writer.context;
+package com.microsoft.azure.flink.writer.context;
 
 import org.apache.flink.api.connector.sink2.Sink;
 
-import com.microsoft.azure.kusto.config.KustoWriteOptions;
+import com.microsoft.azure.flink.config.KustoWriteOptions;
 
 public class DefaultKustoSinkContext implements KustoSinkContext {
 
