@@ -124,6 +124,12 @@
       <version>${kusto.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>com.opencsv</groupId>
+      <artifactId>opencsv</artifactId>
+      <version>5.7.1</version>
+    </dependency>
+
     <!-- Logging API -->
     <dependency>
       <groupId>org.slf4j</groupId>
