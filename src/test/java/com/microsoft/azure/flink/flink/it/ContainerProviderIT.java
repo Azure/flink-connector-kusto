@@ -1,5 +1,7 @@
 package com.microsoft.azure.flink.flink.it;
 
+import java.util.concurrent.ExecutionException;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -12,20 +14,19 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ContainerProviderIT {
-
   private static ContainerProvider containerProvider;
 
   @BeforeAll
   public static void setup() {
-    KustoConnectionOptions connectionOptions = getConnectorProperties();
+    KustoConnectionOptions validConnectionOptions = getConnectorProperties();
     // Test with a short TTL
     KustoRetryConfig queryRetryConfig =
         KustoRetryConfig.builder().withCacheExpirationSeconds(5).build();
-    containerProvider = new ContainerProvider(connectionOptions, queryRetryConfig);
+    containerProvider = new ContainerProvider(validConnectionOptions, queryRetryConfig);
   }
 
   @Test
-  public void containerSasShouldBeQueriedFromDM() {
+  public void containerSasShouldBeQueriedFromDM() throws ExecutionException, InterruptedException {
     assertNotNull(containerProvider);
     assertNotNull(containerProvider.getBlobContainer());
     long expirationTimestamp = containerProvider.getExpirationTimestamp();

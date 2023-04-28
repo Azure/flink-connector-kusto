@@ -2,6 +2,9 @@ package com.microsoft.azure.flink.writer.internal;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -9,6 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
@@ -113,7 +117,7 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
           KustoRetryUtil.getRetries(KustoRetryConfig.builder().build())
               .executeSupplier(performIngestSupplier(uploadContainerSas, blobName, sourceId));
       try {
-        final Object jobResult = pollForCompletion(sourceId.toString(), ingestionResult).get();
+        final String jobResult = pollForCompletion(sourceId.toString(), ingestionResult).get();
       } catch (InterruptedException | ExecutionException e) {
         throw new RuntimeException(e);
       }
@@ -152,7 +156,15 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
   private CompletableFuture<String> pollForCompletion(final String sourceId,
       IngestionResult ingestionResult) {
     CompletableFuture<String> completionFuture = new CompletableFuture<>();
+    long timeToEndPoll = Instant.now(Clock.systemUTC()).plus(5, ChronoUnit.MINUTES).toEpochMilli(); // TODO:
+                                                                                                    // make
+                                                                                                    // this
+                                                                                                    // configurable
     final ScheduledFuture<?> checkFuture = pollResultsExecutor.scheduleAtFixedRate(() -> {
+      if (Instant.now(Clock.systemUTC()).toEpochMilli() > timeToEndPoll) {
+        completionFuture.completeExceptionally(new TimeoutException(
+            "Polling for ingestion of source id: " + sourceId + " timed out."));
+      }
       try {
         LOG.error(">> Ingestion Status << {}",
             ingestionResult.getIngestionStatusCollection().stream()
@@ -175,8 +187,8 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
         LOG.warn(errorMessage, e);
         completionFuture.completeExceptionally(new RuntimeException(errorMessage, e));
       }
-    }, 0, 10, TimeUnit.SECONDS); // TODO pick up from write options. Also CRP needs to be picked
-                                 // up
+    }, 1, 5, TimeUnit.SECONDS); // TODO pick up from write options. Also CRP needs to be picked
+                                // up
     completionFuture.whenComplete((result, thrown) -> {
       checkFuture.cancel(true);
     });
