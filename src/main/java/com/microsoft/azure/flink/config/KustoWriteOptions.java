@@ -58,7 +58,7 @@ public class KustoWriteOptions {
      * @param database the database to sink .
      * @return this builder
      */
-    public KustoWriteOptions.Builder setDatabase(String database) {
+    public KustoWriteOptions.Builder withDatabase(String database) {
       this.database = checkNotNull(database, "The database  must not be null");
       return this;
     }
@@ -69,9 +69,13 @@ public class KustoWriteOptions {
      * @param table the table to sink .
      * @return this builder
      */
-    public KustoWriteOptions.Builder setTable(String table) {
+    public KustoWriteOptions.Builder withTable(String table) {
       this.table = checkNotNull(table, "The table  must not be null");
       return this;
+    }
+
+    public KustoWriteOptions build() {
+      return new KustoWriteOptions(database, table);
     }
   }
 }

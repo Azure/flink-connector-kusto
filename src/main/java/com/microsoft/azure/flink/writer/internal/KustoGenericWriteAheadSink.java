@@ -10,6 +10,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.text.StringEscapeUtils;
@@ -86,8 +87,10 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
         new BlobContainerClientBuilder().endpoint(sasConnectionString).buildClient();
     boolean isUploadSuccessful = true;
     BlobClient uploadClient = blobContainerClient.getBlobClient(blobName);
-    BlobOutputStream blobOutputStream = uploadClient.getBlockBlobClient().getBlobOutputStream(true);
-    try (GZIPOutputStream gzip = new GZIPOutputStream(blobOutputStream)) {
+    try (
+        BlobOutputStream blobOutputStream =
+            uploadClient.getBlockBlobClient().getBlobOutputStream(true);
+        GZIPOutputStream gzip = new GZIPOutputStream(blobOutputStream)) {
       for (IN value : values) {
         for (int x = 0; x < value.getArity(); x++) {
           try {
@@ -98,19 +101,12 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
             LOG.error("Error while writing row to blob.", e);
             isUploadSuccessful = false;
           }
-          gzip.write(System.lineSeparator().getBytes());
         }
+        gzip.write(System.lineSeparator().getBytes());
       }
     } catch (IOException e) {
       LOG.error("Error while writing to blob.", e);
       isUploadSuccessful = false;
-    } finally {
-      blobOutputStream.flush();
-      try {
-        blobOutputStream.close();
-      } catch (IOException e) {
-        LOG.warn("Error while closing blob output stream.", e);
-      }
     }
     if (isUploadSuccessful) {
       IngestionResult ingestionResult =
@@ -133,9 +129,16 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
         String blobUri = String.format("%s/%s?%s", container.getContainerUrl(), blobName,
             container.getSasToken());
         BlobSourceInfo blobSourceInfo = new BlobSourceInfo(blobUri);
+        LOG.info("Ingesting into blob: {} with source id {}", blobUri, sourceId);
         blobSourceInfo.setSourceId(sourceId);
-        return this.ingestClient.ingestFromBlob(blobSourceInfo,
-            new IngestionProperties(this.writeOptions.getDatabase(), this.writeOptions.getTable()));
+        IngestionProperties ingestionProperties =
+            new IngestionProperties(this.writeOptions.getDatabase(), this.writeOptions.getTable());
+        ingestionProperties.setReportMethod(IngestionProperties.IngestionReportMethod.TABLE);
+        ingestionProperties
+            .setReportLevel(IngestionProperties.IngestionReportLevel.FAILURES_AND_SUCCESSES);
+        ingestionProperties.setDataFormat(IngestionProperties.DataFormat.CSV.name());
+        // ingestionProperties.setFlushImmediately(true);// TODO: make this configurable
+        return this.ingestClient.ingestFromBlob(blobSourceInfo, ingestionProperties);
       } catch (IngestionClientException | IngestionServiceException e) {
         String errorMessage = String
             .format("URI syntax exception polling ingestion status for sourceId: %s", sourceId);
@@ -151,6 +154,10 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
     CompletableFuture<String> completionFuture = new CompletableFuture<>();
     final ScheduledFuture<?> checkFuture = pollResultsExecutor.scheduleAtFixedRate(() -> {
       try {
+        LOG.error(">> Ingestion Status << {}",
+            ingestionResult.getIngestionStatusCollection().stream()
+                .map(is -> is.getIngestionSourceId() + "::" + is.getStatus())
+                .collect(Collectors.joining(",")));
         ingestionResult.getIngestionStatusCollection().stream().filter(
             ingestionStatus -> ingestionStatus.getIngestionSourceId().toString().equals(sourceId))
             .findFirst().ifPresent(ingestionStatus -> {
@@ -167,10 +174,9 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
             .format("URI syntax exception polling ingestion status for sourceId: %s", sourceId);
         LOG.warn(errorMessage, e);
         completionFuture.completeExceptionally(new RuntimeException(errorMessage, e));
-
       }
-    }, 0, 5 * 60, TimeUnit.SECONDS); // TODO pick up from write options. Also CRP needs to be picked
-                                     // up
+    }, 0, 10, TimeUnit.SECONDS); // TODO pick up from write options. Also CRP needs to be picked
+                                 // up
     completionFuture.whenComplete((result, thrown) -> {
       checkFuture.cancel(true);
     });
