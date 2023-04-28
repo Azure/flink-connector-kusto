@@ -43,6 +43,8 @@ import com.microsoft.azure.kusto.ingest.result.IngestionResult;
 import com.microsoft.azure.kusto.ingest.result.OperationStatus;
 import com.microsoft.azure.kusto.ingest.source.BlobSourceInfo;
 
+import static java.time.temporal.ChronoUnit.MINUTES;
+import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAheadSink<IN> {
@@ -117,11 +119,11 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
           KustoRetryUtil.getRetries(KustoRetryConfig.builder().build())
               .executeSupplier(performIngestSupplier(uploadContainerSas, blobName, sourceId));
       try {
-        final String jobResult = pollForCompletion(sourceId.toString(), ingestionResult).get();
+        final String pollResult = pollForCompletion(sourceId.toString(), ingestionResult).get();
+        return OperationStatus.Succeeded.name().equals(pollResult);
       } catch (InterruptedException | ExecutionException e) {
         throw new RuntimeException(e);
       }
-      return false;
     }
     return false;
   }
@@ -162,23 +164,32 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
                                                                                                     // configurable
     final ScheduledFuture<?> checkFuture = pollResultsExecutor.scheduleAtFixedRate(() -> {
       if (Instant.now(Clock.systemUTC()).toEpochMilli() > timeToEndPoll) {
+        LOG.warn("Time for polling end is {} and the current epoch time is {}. This operation will timeout",
+            Instant.ofEpochMilli(timeToEndPoll), Instant.now(Clock.systemUTC()));
         completionFuture.completeExceptionally(new TimeoutException(
             "Polling for ingestion of source id: " + sourceId + " timed out."));
       }
       try {
-        LOG.error(">> Ingestion Status << {}",
+        LOG.info("Ingestion Status << {}",
             ingestionResult.getIngestionStatusCollection().stream()
                 .map(is -> is.getIngestionSourceId() + "::" + is.getStatus())
                 .collect(Collectors.joining(",")));
         ingestionResult.getIngestionStatusCollection().stream().filter(
             ingestionStatus -> ingestionStatus.getIngestionSourceId().toString().equals(sourceId))
             .findFirst().ifPresent(ingestionStatus -> {
-              if (ingestionStatus.status == OperationStatus.Succeeded
-                  || ingestionStatus.status == OperationStatus.PartiallySucceeded) {
+              if (ingestionStatus.status == OperationStatus.Succeeded) {
                 completionFuture.complete(ingestionStatus.status.name());
               } else if (ingestionStatus.status == OperationStatus.Failed) {
+                String failureReason = String.format("Ingestion failed for sourceId: %s with failure reason %s", sourceId,ingestionStatus.getFailureStatus());
+                LOG.error(failureReason);
                 completionFuture.completeExceptionally(
-                    new RuntimeException("Ingestion failed for sourceId: " + sourceId));
+                    new RuntimeException(failureReason));
+              } else if (ingestionStatus.status == OperationStatus.PartiallySucceeded) {
+                //TODO check if this is really the case. What happens if one the blobs was malformed ?
+                String failureReason = String.format("Ingestion failed for sourceId: %s with failure reason %s. " +
+                        "This will result in duplicates if the error was transient.", sourceId,ingestionStatus.getFailureStatus());
+                LOG.warn(failureReason);
+                completionFuture.complete(ingestionStatus.status.name());
               }
             });
       } catch (URISyntaxException e) {

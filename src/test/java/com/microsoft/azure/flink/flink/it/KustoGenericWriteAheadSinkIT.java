@@ -107,6 +107,7 @@ public class KustoGenericWriteAheadSinkIT {
       testHarness.snapshot(0, 0);
       testHarness.notifyOfCompletedCheckpoint(0);
       testHarness.close();
+      // TODO Write proper Assertions here
       assert (1 == Integer.parseInt("1"));
     } catch (Exception e) {
       LOG.error("Failed to create KustoGenericWriteAheadSink", e);
