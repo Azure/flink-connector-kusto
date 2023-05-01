@@ -1,13 +1,18 @@
 package com.microsoft.azure.flink.flink.it;
 
-import java.io.Serializable;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -15,31 +20,48 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.json.JSONException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.skyscreamer.jsonassert.Customization;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.comparator.CustomComparator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
+import com.microsoft.azure.flink.flink.TupleTestObject;
 import com.microsoft.azure.flink.writer.internal.KustoGenericWriteAheadSink;
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.data.ClientFactory;
+import com.microsoft.azure.kusto.data.KustoResultSetTable;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
+import com.microsoft.azure.kusto.data.exceptions.DataClientException;
+import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
+
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.retry.RetryRegistry;
 
 import static com.microsoft.azure.flink.flink.ITSetup.getConnectorProperties;
 import static com.microsoft.azure.flink.flink.ITSetup.getWriteOptions;
+import static java.time.temporal.ChronoUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.skyscreamer.jsonassert.JSONCompareMode.LENIENT;
 
 public class KustoGenericWriteAheadSinkIT {
   private static final Logger LOG = LoggerFactory.getLogger(KustoGenericWriteAheadSinkIT.class);
+
+  private static final String KEY_COL = "vstr";
   private static Client engineClient;
   private static Client dmClient;
   private static KustoConnectionOptions coordinates;
@@ -85,12 +107,15 @@ public class KustoGenericWriteAheadSinkIT {
   }
 
   @Test
-  public void test() {
+  public void testIngest() {
+    Map<String, String> expectedResults = new HashMap<>();
+    int maxRecords = 100;
+    ObjectMapper objectMapper = new ObjectMapper();
+    TypeSerializer<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> serializer =
+        TypeInformation.of(
+            new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {})
+            .createSerializer(new ExecutionConfig());
     try {
-      TypeSerializer<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> serializer =
-          TypeInformation.of(
-              new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {})
-              .createSerializer(new ExecutionConfig());
       // TypeExtractor.getForObject(
       // new Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>())
       // .createSerializer(new ExecutionConfig());
@@ -100,15 +125,38 @@ public class KustoGenericWriteAheadSinkIT {
       OneInputStreamOperatorTestHarness<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>, ?> testHarness =
           new OneInputStreamOperatorTestHarness<>(kustoGenericWriteAheadSink);
       testHarness.open();
-      for (int x = 0; x < 10; x++) {
-        testHarness.processElement(new StreamRecord<>(new Tuple8<>(x, 1.11 * x,
-            "2019-01-01T00:00:00.000Z", true, 2.1d * x, "Flink-,;" + x, 201L * x, "flink")));
+      // (vnum:int, vdec:decimal, vdate:datetime, vb:boolean, vreal:real, vstr:string,
+      // vlong:long,type:string
+      for (int x = 0; x < maxRecords; x++) {
+        TupleTestObject tupleTestObject = new TupleTestObject(x);
+        testHarness.processElement(new StreamRecord<>(tupleTestObject.toTuple()));
+        expectedResults.put(tupleTestObject.getVstr(), tupleTestObject.toJsonString());
       }
       testHarness.snapshot(0, 0);
       testHarness.notifyOfCompletedCheckpoint(0);
       testHarness.close();
-      // TODO Write proper Assertions here
-      assert (1 == Integer.parseInt("1"));
+      // Perform the assertions here
+      Map<String, String> actualRecordsIngested = getActualRecordsIngested(maxRecords);
+      actualRecordsIngested.keySet().parallelStream().forEach(key -> {
+        LOG.debug("Record queried: {} and expected record {} ", actualRecordsIngested.get(key),
+            expectedResults.get(key));
+        try {
+          JSONAssert.assertEquals(expectedResults.get(key), actualRecordsIngested.get(key),
+              new CustomComparator(LENIENT,
+                  // there are sometimes round off errors in the double values but they are close
+                  // enough to 8 precision
+                  new Customization("vdec",
+                      (vdec1,
+                          vdec2) -> Math.abs(Double.parseDouble(vdec1.toString())
+                              - Double.parseDouble(vdec2.toString())) < 0.000000001),
+
+                  new Customization("vdate", (vdate1, vdate2) -> Instant.parse(vdate1.toString())
+                      .toEpochMilli() == Instant.parse(vdate2.toString()).toEpochMilli())));
+        } catch (JSONException e) {
+          fail(e);
+        }
+      });
+      assertEquals(maxRecords, actualRecordsIngested.size());
     } catch (Exception e) {
       LOG.error("Failed to create KustoGenericWriteAheadSink", e);
       fail(e);
@@ -149,6 +197,42 @@ public class KustoGenericWriteAheadSinkIT {
     LOG.info("Refreshed cache on DB {}", writeOptions.getDatabase());
   }
 
+  private Map<String, String> getActualRecordsIngested(int maxRecords) {
+    String query = String.format("%s | project  %s,vresult = pack_all() | order by vstr asc ",
+        writeOptions.getTable(), KEY_COL);
+    Predicate<Object> predicate = (results) -> {
+      if (results != null) {
+        LOG.debug("Retrieved records count {}", ((Map<?, ?>) results).size());
+      }
+      return results == null || ((Map<?, ?>) results).isEmpty()
+          || ((Map<?, ?>) results).size() < maxRecords;
+    };
+    // Waits 30 seconds for the records to be ingested. Repeats the poll 5 times , in all 150
+    // seconds
+    RetryConfig config = RetryConfig.custom().maxAttempts(5).retryOnResult(predicate)
+        .waitDuration(Duration.of(30, SECONDS)).build();
+    RetryRegistry registry = RetryRegistry.of(config);
+    Retry retry = registry.retry("ingestRecordService", config);
+    Supplier<Map<String, String>> recordSearchSupplier = () -> {
+      try {
+        LOG.debug("Executing query {} ", query);
+        KustoResultSetTable resultSet =
+            engineClient.execute(writeOptions.getDatabase(), query).getPrimaryResults();
+        Map<String, String> actualResults = new HashMap<>();
+        while (resultSet.next()) {
+          String key = resultSet.getString(KEY_COL);
+          String vResult = resultSet.getString("vresult");
+          LOG.debug("Record queried: {}", vResult);
+          actualResults.put(key, vResult);
+        }
+        return actualResults;
+      } catch (DataServiceException | DataClientException e) {
+        return Collections.emptyMap();
+      }
+    };
+    return retry.executeSupplier(recordSearchSupplier);
+  }
+
 
   private static class SimpleCommitter extends CheckpointCommitter {
     private static final long serialVersionUID = 1L;
@@ -174,66 +258,6 @@ public class KustoGenericWriteAheadSinkIT {
     @Override
     public boolean isCheckpointCommitted(int subtaskIdx, long checkpointID) {
       return checkpoints.contains(new Tuple2<>(checkpointID, subtaskIdx));
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  private static class TableObject extends Tuple implements Serializable {
-    // (vnum:int, vdec:decimal, vdate:datetime, vb:boolean, vreal:real, vstr:string,
-    // vlong:long,type:string)
-    int vnum;
-    double vdec;
-    String vdate;
-    boolean vb;
-    double vreal;
-    String vstr;
-    long vlong;
-    String type;
-    private transient List<Object> values;
-
-    public TableObject(int vnum, double vdec, String vdate, boolean vb, double vreal, String vstr,
-        long vlong, String type) {
-      this.vnum = vnum;
-      this.vdec = vdec;
-      this.vdate = vdate;
-      this.vb = vb;
-      this.vreal = vreal;
-      this.vstr = vstr;
-      this.vlong = vlong;
-      this.type = type;
-      this.values = Collections.synchronizedList(new ArrayList<>(8));
-    }
-
-    public TableObject() {
-
-    }
-
-    @Override
-    public <T> T getField(int i) {
-      return (T) this.values.get(i);
-    }
-
-    @Override
-    public <T> void setField(T t, int i) {
-      this.values.add(i, t);
-    }
-
-    @Override
-    public int getArity() {
-      return 8;
-    }
-
-    @Override
-    public <T extends Tuple> T copy() {
-      try {
-        T t = (T) TableObject.newInstance(8);
-        for (int i = 0; i < 8; i++) {
-          t.setField(getField(i), i);
-        }
-        return t;
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
     }
   }
 }

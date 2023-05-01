@@ -164,7 +164,8 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
                                                                                                     // configurable
     final ScheduledFuture<?> checkFuture = pollResultsExecutor.scheduleAtFixedRate(() -> {
       if (Instant.now(Clock.systemUTC()).toEpochMilli() > timeToEndPoll) {
-        LOG.warn("Time for polling end is {} and the current epoch time is {}. This operation will timeout",
+        LOG.warn(
+            "Time for polling end is {} and the current epoch time is {}. This operation will timeout",
             Instant.ofEpochMilli(timeToEndPoll), Instant.now(Clock.systemUTC()));
         completionFuture.completeExceptionally(new TimeoutException(
             "Polling for ingestion of source id: " + sourceId + " timed out."));
@@ -180,14 +181,18 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
               if (ingestionStatus.status == OperationStatus.Succeeded) {
                 completionFuture.complete(ingestionStatus.status.name());
               } else if (ingestionStatus.status == OperationStatus.Failed) {
-                String failureReason = String.format("Ingestion failed for sourceId: %s with failure reason %s", sourceId,ingestionStatus.getFailureStatus());
+                String failureReason =
+                    String.format("Ingestion failed for sourceId: %s with failure reason %s",
+                        sourceId, ingestionStatus.getFailureStatus());
                 LOG.error(failureReason);
-                completionFuture.completeExceptionally(
-                    new RuntimeException(failureReason));
+                completionFuture.completeExceptionally(new RuntimeException(failureReason));
               } else if (ingestionStatus.status == OperationStatus.PartiallySucceeded) {
-                //TODO check if this is really the case. What happens if one the blobs was malformed ?
-                String failureReason = String.format("Ingestion failed for sourceId: %s with failure reason %s. " +
-                        "This will result in duplicates if the error was transient.", sourceId,ingestionStatus.getFailureStatus());
+                // TODO check if this is really the case. What happens if one the blobs was
+                // malformed ?
+                String failureReason = String.format(
+                    "Ingestion failed for sourceId: %s with failure reason %s. "
+                        + "This will result in duplicates if the error was transient.",
+                    sourceId, ingestionStatus.getFailureStatus());
                 LOG.warn(failureReason);
                 completionFuture.complete(ingestionStatus.status.name());
               }

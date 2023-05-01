@@ -36,6 +36,7 @@
     <formatter.version>2.20.0</formatter.version>
     <mvn.failsafe.plugin.version>3.0.0</mvn.failsafe.plugin.version>
     <azure.bom.version>1.2.11</azure.bom.version>
+    <jsonassert.version>1.5.1</jsonassert.version>
   </properties>
 
 
@@ -165,12 +166,6 @@
       </exclusions>
     </dependency>
 
-    <dependency>
-      <groupId>com.opencsv</groupId>
-      <artifactId>opencsv</artifactId>
-      <version>5.7.1</version>
-    </dependency>
-
     <!-- Logging API -->
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -190,6 +185,12 @@
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.skyscreamer</groupId>
+      <artifactId>jsonassert</artifactId>
+      <version>${jsonassert.version}</version>
       <scope>test</scope>
     </dependency>
 
