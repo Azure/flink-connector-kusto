@@ -22,9 +22,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple8;
+import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.types.Row;
 import org.json.JSONException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -35,11 +37,10 @@ import org.skyscreamer.jsonassert.comparator.CustomComparator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 import com.microsoft.azure.flink.flink.TupleTestObject;
-import com.microsoft.azure.flink.writer.internal.KustoGenericWriteAheadSink;
+import com.microsoft.azure.flink.writer.internal.KustoTupleGenericWriteAheadSink;
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.data.ClientFactory;
 import com.microsoft.azure.kusto.data.KustoResultSetTable;
@@ -58,6 +59,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.skyscreamer.jsonassert.JSONCompareMode.LENIENT;
 
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class KustoGenericWriteAheadSinkIT {
   private static final Logger LOG = LoggerFactory.getLogger(KustoGenericWriteAheadSinkIT.class);
 
@@ -107,36 +109,81 @@ public class KustoGenericWriteAheadSinkIT {
   }
 
   @Test
-  public void testIngest() {
-    Map<String, String> expectedResults = new HashMap<>();
-    int maxRecords = 100;
-    ObjectMapper objectMapper = new ObjectMapper();
+  public void testTupleIngest() throws Exception {
+    String typeKey = "FlinkTupleTest";
     TypeSerializer<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> serializer =
         TypeInformation.of(
             new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {})
             .createSerializer(new ExecutionConfig());
+    KustoTupleGenericWriteAheadSink<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> kustoGenericWriteAheadSink =
+        new KustoTupleGenericWriteAheadSink<>(coordinates, writeOptions, new SimpleCommitter(),
+            serializer, UUID.randomUUID().toString());
+    OneInputStreamOperatorTestHarness<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>, ?> testHarness =
+        new OneInputStreamOperatorTestHarness<>(kustoGenericWriteAheadSink);
+    int maxRecords = 100;
+    Map<String, String> expectedResults = new HashMap<>();
+    testHarness.open();
+    for (int x = 0; x < maxRecords; x++) {
+      TupleTestObject tupleTestObject = new TupleTestObject(x, typeKey);
+      testHarness.processElement(new StreamRecord(tupleTestObject.toTuple()));
+      expectedResults.put(tupleTestObject.getVstr(), tupleTestObject.toJsonString());
+    }
+    performTest(testHarness, expectedResults, maxRecords, typeKey);
+  }
+
+  @Test
+  public void testRowIngest() throws Exception {
+    String typeKey = "FlinkRowTest";
+    ExecutionConfig config = new ExecutionConfig();
+    TypeSerializer<?>[] fieldSerializers = new TypeSerializer[8];
+    TypeInformation<?>[] types = new TypeInformation[8];
+    types[0] = TypeInformation.of(new TypeHint<Integer>() {});
+    types[1] = TypeInformation.of(new TypeHint<Double>() {});
+    types[2] = TypeInformation.of(new TypeHint<String>() {});
+    types[3] = TypeInformation.of(new TypeHint<Boolean>() {});
+    types[4] = TypeInformation.of(new TypeHint<Double>() {});
+    types[5] = TypeInformation.of(new TypeHint<String>() {});
+    types[6] = TypeInformation.of(new TypeHint<Long>() {});
+    types[7] = TypeInformation.of(new TypeHint<String>() {});
+    TypeInformation.of(new TypeHint<Integer>() {});
+    for (int i = 0; i < 8; i++) {
+      fieldSerializers[i] = types[i].createSerializer(config);
+    }
+    RowSerializer rowSerializer = new RowSerializer(fieldSerializers);
+    KustoTupleGenericWriteAheadSink<Row> kustoGenericWriteAheadSink =
+        new KustoTupleGenericWriteAheadSink<>(coordinates, writeOptions, new SimpleCommitter(),
+            rowSerializer, UUID.randomUUID().toString());
+    OneInputStreamOperatorTestHarness<Row, ?> testHarness =
+        new OneInputStreamOperatorTestHarness<>(kustoGenericWriteAheadSink);
+    int maxRecords = 100;
+    Map<String, String> expectedResults = new HashMap<>();
+    testHarness.open();
+    for (int x = 0; x < maxRecords; x++) {
+      TupleTestObject tupleTestObject = new TupleTestObject(x, typeKey);
+      Row row = new Row(8);
+      row.setField(0, tupleTestObject.getVnum());
+      row.setField(1, tupleTestObject.getVdec());
+      row.setField(2, tupleTestObject.getVdate());
+      row.setField(3, tupleTestObject.isVb());
+      row.setField(4, tupleTestObject.getVreal());
+      row.setField(5, tupleTestObject.getVstr());
+      row.setField(6, tupleTestObject.getVlong());
+      row.setField(7, tupleTestObject.getType());
+      testHarness.processElement(new StreamRecord(row));
+      expectedResults.put(tupleTestObject.getVstr(), tupleTestObject.toJsonString());
+    }
+    performTest(testHarness, expectedResults, maxRecords, typeKey);
+  }
+
+  private void performTest(OneInputStreamOperatorTestHarness<?, ?> testHarness,
+      Map<String, String> expectedResults, int maxRecords, String typeKey) {
     try {
-      // TypeExtractor.getForObject(
-      // new Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>())
-      // .createSerializer(new ExecutionConfig());
-      KustoGenericWriteAheadSink<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> kustoGenericWriteAheadSink =
-          new KustoGenericWriteAheadSink<>(coordinates, writeOptions, new SimpleCommitter(),
-              serializer, UUID.randomUUID().toString());
-      OneInputStreamOperatorTestHarness<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>, ?> testHarness =
-          new OneInputStreamOperatorTestHarness<>(kustoGenericWriteAheadSink);
-      testHarness.open();
-      // (vnum:int, vdec:decimal, vdate:datetime, vb:boolean, vreal:real, vstr:string,
-      // vlong:long,type:string
-      for (int x = 0; x < maxRecords; x++) {
-        TupleTestObject tupleTestObject = new TupleTestObject(x);
-        testHarness.processElement(new StreamRecord<>(tupleTestObject.toTuple()));
-        expectedResults.put(tupleTestObject.getVstr(), tupleTestObject.toJsonString());
-      }
-      testHarness.snapshot(0, 0);
-      testHarness.notifyOfCompletedCheckpoint(0);
+      long checkpointId = Instant.now().toEpochMilli();
+      testHarness.snapshot(checkpointId, Instant.now().toEpochMilli());
+      testHarness.notifyOfCompletedCheckpoint(checkpointId);
       testHarness.close();
       // Perform the assertions here
-      Map<String, String> actualRecordsIngested = getActualRecordsIngested(maxRecords);
+      Map<String, String> actualRecordsIngested = getActualRecordsIngested(maxRecords, typeKey);
       actualRecordsIngested.keySet().parallelStream().forEach(key -> {
         LOG.debug("Record queried: {} and expected record {} ", actualRecordsIngested.get(key),
             expectedResults.get(key));
@@ -158,7 +205,7 @@ public class KustoGenericWriteAheadSinkIT {
       });
       assertEquals(maxRecords, actualRecordsIngested.size());
     } catch (Exception e) {
-      LOG.error("Failed to create KustoGenericWriteAheadSink", e);
+      LOG.error("Failed to create KustoTupleGenericWriteAheadSink", e);
       fail(e);
     }
   }
@@ -197,9 +244,10 @@ public class KustoGenericWriteAheadSinkIT {
     LOG.info("Refreshed cache on DB {}", writeOptions.getDatabase());
   }
 
-  private Map<String, String> getActualRecordsIngested(int maxRecords) {
-    String query = String.format("%s | project  %s,vresult = pack_all() | order by vstr asc ",
-        writeOptions.getTable(), KEY_COL);
+  private Map<String, String> getActualRecordsIngested(int maxRecords, String typeKey) {
+    String query = String.format(
+        "%s | where type == '%s'| project  %s,vresult = pack_all() | order by vstr asc ",
+        writeOptions.getTable(), typeKey, KEY_COL);
     Predicate<Object> predicate = (results) -> {
       if (results != null) {
         LOG.debug("Retrieved records count {}", ((Map<?, ?>) results).size());

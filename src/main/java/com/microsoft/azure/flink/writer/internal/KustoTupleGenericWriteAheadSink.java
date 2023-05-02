@@ -2,9 +2,11 @@ package com.microsoft.azure.flink.writer.internal;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -17,12 +19,15 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.streaming.runtime.operators.GenericWriteAheadSink;
+import org.apache.flink.types.Row;
 import org.jetbrains.annotations.NotNull;
 
 import com.azure.storage.blob.BlobClient;
@@ -36,6 +41,7 @@ import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 import com.microsoft.azure.flink.writer.internal.container.ContainerSas;
 import com.microsoft.azure.kusto.ingest.IngestClient;
+import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
@@ -43,11 +49,9 @@ import com.microsoft.azure.kusto.ingest.result.IngestionResult;
 import com.microsoft.azure.kusto.ingest.result.OperationStatus;
 import com.microsoft.azure.kusto.ingest.source.BlobSourceInfo;
 
-import static java.time.temporal.ChronoUnit.MINUTES;
-import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAheadSink<IN> {
+public class KustoTupleGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
   private final KustoConnectionOptions connectionOptions;
   private final KustoWriteOptions writeOptions;
 
@@ -55,18 +59,22 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
 
   private transient Object[] fields;
 
+  private final transient Class<?> clazzType;
+
   private final ScheduledExecutorService pollResultsExecutor =
       Executors.newSingleThreadScheduledExecutor();
 
 
-  public KustoGenericWriteAheadSink(KustoConnectionOptions connectionOptions,
+  public KustoTupleGenericWriteAheadSink(KustoConnectionOptions connectionOptions,
       KustoWriteOptions writeOptions, CheckpointCommitter committer, TypeSerializer<IN> serializer,
       String jobID) throws Exception {
     super(committer, serializer, jobID);
     this.connectionOptions = connectionOptions;
     this.writeOptions = writeOptions;
+    this.clazzType = serializer.createInstance().getClass();
   }
 
+  @Override
   public void open() throws Exception {
     super.open();
     if (!getRuntimeContext().isCheckpointingEnabled()) {
@@ -74,7 +82,13 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
     }
     this.ingestClient = IngestClientUtil.createIngestClient(checkNotNull(this.connectionOptions,
         "Connection options passed to ingest client cannot be null."));
-    this.fields = new Object[((TupleSerializer<IN>) serializer).getArity()];
+    if (Tuple.class.isAssignableFrom(clazzType)) {
+      int arity = (((TupleSerializer<?>) serializer)).getArity();
+      this.fields = new Object[arity];
+    } else if (Row.class.isAssignableFrom(clazzType)) {
+      int arity = ((RowSerializer) serializer).getArity();
+      this.fields = new Object[arity];
+    }
   }
 
   @Override
@@ -98,20 +112,41 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
             uploadClient.getBlockBlobClient().getBlobOutputStream(true);
         GZIPOutputStream gzip = new GZIPOutputStream(blobOutputStream)) {
       for (IN value : values) {
-        for (int x = 0; x < value.getArity(); x++) {
-          try {
-            fields[x] = value.getField(x);
-            gzip.write(StringEscapeUtils.escapeCsv(fields[x].toString()).getBytes());
-            gzip.write(',');
-          } catch (IOException e) {
-            LOG.error("Error while writing row to blob.", e);
-            isUploadSuccessful = false;
+        if (Tuple.class.isAssignableFrom(this.clazzType)) {
+          Tuple tupleValue = (Tuple) value;
+          for (int x = 0; x < tupleValue.getArity(); x++) {
+            try {
+              fields[x] = tupleValue.getField(x);
+              if (!Objects.isNull(fields[x])) {
+                gzip.write(StringEscapeUtils.escapeCsv(fields[x].toString())
+                    .getBytes(StandardCharsets.UTF_8));
+              }
+              gzip.write(',');
+            } catch (IOException e) {
+              LOG.error("Error while writing row to blob using TupleValue.", e);
+              isUploadSuccessful = false;
+            }
+          }
+        } else if (Row.class.isAssignableFrom(this.clazzType)) {
+          Row rowValue = (Row) value;
+          for (int x = 0; x < rowValue.getArity(); x++) {
+            try {
+              fields[x] = rowValue.getField(x);
+              if (!Objects.isNull(fields[x])) {
+                gzip.write(StringEscapeUtils.escapeCsv(fields[x].toString())
+                    .getBytes(StandardCharsets.UTF_8));
+              }
+              gzip.write(',');
+            } catch (IOException e) {
+              LOG.error("Error while writing row to blob using RowValue.", e);
+              isUploadSuccessful = false;
+            }
           }
         }
         gzip.write(System.lineSeparator().getBytes());
       }
     } catch (IOException e) {
-      LOG.error("Error while writing to blob.", e);
+      LOG.error("Error (IOException) while writing to blob.", e);
       isUploadSuccessful = false;
     }
     if (isUploadSuccessful) {
@@ -122,6 +157,7 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
         final String pollResult = pollForCompletion(sourceId.toString(), ingestionResult).get();
         return OperationStatus.Succeeded.name().equals(pollResult);
       } catch (InterruptedException | ExecutionException e) {
+        LOG.error("Error while polling for completion of ingestion.", e);
         throw new RuntimeException(e);
       }
     }
@@ -143,7 +179,11 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
         ingestionProperties
             .setReportLevel(IngestionProperties.IngestionReportLevel.FAILURES_AND_SUCCESSES);
         ingestionProperties.setDataFormat(IngestionProperties.DataFormat.CSV.name());
-        // ingestionProperties.setFlushImmediately(true);// TODO: make this configurable
+        if (StringUtils.isNotEmpty(this.writeOptions.getIngestionMappingRef())) {
+          ingestionProperties.setIngestionMapping(this.writeOptions.getIngestionMappingRef(),
+              IngestionMapping.IngestionMappingKind.CSV);
+        }
+        ingestionProperties.setFlushImmediately(this.writeOptions.getFlushImmediately());
         return this.ingestClient.ingestFromBlob(blobSourceInfo, ingestionProperties);
       } catch (IngestionClientException | IngestionServiceException e) {
         String errorMessage = String
@@ -171,7 +211,7 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
             "Polling for ingestion of source id: " + sourceId + " timed out."));
       }
       try {
-        LOG.info("Ingestion Status << {}",
+        LOG.info("Ingestion Status {}",
             ingestionResult.getIngestionStatusCollection().stream()
                 .map(is -> is.getIngestionSourceId() + "::" + is.getStatus())
                 .collect(Collectors.joining(",")));
@@ -205,9 +245,7 @@ public class KustoGenericWriteAheadSink<IN extends Tuple> extends GenericWriteAh
       }
     }, 1, 5, TimeUnit.SECONDS); // TODO pick up from write options. Also CRP needs to be picked
                                 // up
-    completionFuture.whenComplete((result, thrown) -> {
-      checkFuture.cancel(true);
-    });
+    completionFuture.whenComplete((result, thrown) -> checkFuture.cancel(true));
     return completionFuture;
   }
 

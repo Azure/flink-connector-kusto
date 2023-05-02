@@ -52,7 +52,7 @@ public class TupleTestObject {
 
   private String type;
 
-  public TupleTestObject(int iterationKey) {
+  public TupleTestObject(int iterationKey, String typeKey) {
     // randomize values with Random
     Random rand = new Random();
     this.vnum = rand.nextInt(100);
@@ -64,7 +64,7 @@ public class TupleTestObject {
     this.vreal = rand.nextDouble();
     this.vstr = String.format("Flink,,;@#-%s", iterationKey);
     this.vlong = rand.nextLong();
-    this.type = "Flink-Tuple-Test";
+    this.type = typeKey;
   }
 
   public String toJsonString() throws Exception {

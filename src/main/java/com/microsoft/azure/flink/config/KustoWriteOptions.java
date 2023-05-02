@@ -10,9 +10,16 @@ public class KustoWriteOptions {
   private final String database;
   private final String table;
 
-  private KustoWriteOptions(String database, String table) {
+  private final String ingestionMappingRef;
+
+  private final boolean flushImmediately;
+
+  private KustoWriteOptions(String database, String table, String ingestionMappingRef,
+      boolean flushImmediately) {
     this.database = checkNotNull(database);
     this.table = checkNotNull(table);
+    this.ingestionMappingRef = ingestionMappingRef;
+    this.flushImmediately = flushImmediately;
   }
 
   public String getDatabase() {
@@ -22,6 +29,16 @@ public class KustoWriteOptions {
   public String getTable() {
     return table;
   }
+
+  public String getIngestionMappingRef() {
+    return ingestionMappingRef;
+  }
+
+  public boolean getFlushImmediately() {
+    return flushImmediately;
+  }
+
+
 
   @Override
   public boolean equals(Object o) {
@@ -50,6 +67,10 @@ public class KustoWriteOptions {
     private String database;
     private String table;
 
+    private String ingestionMappingRef = null;
+
+    private boolean flushImmediately = false;
+
     private Builder() {}
 
     /**
@@ -74,8 +95,32 @@ public class KustoWriteOptions {
       return this;
     }
 
+    /**
+     * Sets the ingestion mapping reference .
+     *
+     * @param ingestionMappingRef the ingestion mapping reference to sink .
+     * @return this builder
+     */
+    public KustoWriteOptions.Builder withIngestionMappingRef(String ingestionMappingRef) {
+      this.ingestionMappingRef =
+          checkNotNull(ingestionMappingRef, "The mapping ingestion reference  must not be null");
+      return this;
+    }
+
+    /**
+     * Sets the flush immediately .
+     *
+     * @param flushImmediately the flush immediately to sink .
+     * @return this builder
+     */
+    public KustoWriteOptions.Builder withFlushImmediately(boolean flushImmediately) {
+      this.flushImmediately = flushImmediately;
+      return this;
+    }
+
+
     public KustoWriteOptions build() {
-      return new KustoWriteOptions(database, table);
+      return new KustoWriteOptions(database, table, ingestionMappingRef, flushImmediately);
     }
   }
 }
