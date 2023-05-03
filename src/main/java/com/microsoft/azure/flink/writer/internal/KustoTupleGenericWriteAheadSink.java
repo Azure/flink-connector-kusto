@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
+import org.apache.flink.api.scala.typeutils.CaseClassSerializer;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.streaming.runtime.operators.GenericWriteAheadSink;
 import org.apache.flink.types.Row;
@@ -48,6 +49,8 @@ import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
 import com.microsoft.azure.kusto.ingest.result.IngestionResult;
 import com.microsoft.azure.kusto.ingest.result.OperationStatus;
 import com.microsoft.azure.kusto.ingest.source.BlobSourceInfo;
+
+import scala.Product;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -87,6 +90,9 @@ public class KustoTupleGenericWriteAheadSink<IN> extends GenericWriteAheadSink<I
       this.fields = new Object[arity];
     } else if (Row.class.isAssignableFrom(clazzType)) {
       int arity = ((RowSerializer) serializer).getArity();
+      this.fields = new Object[arity];
+    } else if (Product.class.isAssignableFrom(clazzType)) {
+      int arity = ((CaseClassSerializer<?>) serializer).getArity();
       this.fields = new Object[arity];
     }
   }
@@ -132,6 +138,21 @@ public class KustoTupleGenericWriteAheadSink<IN> extends GenericWriteAheadSink<I
           for (int x = 0; x < rowValue.getArity(); x++) {
             try {
               fields[x] = rowValue.getField(x);
+              if (!Objects.isNull(fields[x])) {
+                gzip.write(StringEscapeUtils.escapeCsv(fields[x].toString())
+                    .getBytes(StandardCharsets.UTF_8));
+              }
+              gzip.write(',');
+            } catch (IOException e) {
+              LOG.error("Error while writing row to blob using RowValue.", e);
+              isUploadSuccessful = false;
+            }
+          }
+        } else if (Product.class.isAssignableFrom(this.clazzType)) {
+          Product product = (Product) value;
+          for (int x = 0; x < product.productArity(); x++) {
+            try {
+              fields[x] = product.productElement(x);
               if (!Objects.isNull(fields[x])) {
                 gzip.write(StringEscapeUtils.escapeCsv(fields[x].toString())
                     .getBytes(StandardCharsets.UTF_8));

@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
+import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializer;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -145,7 +146,6 @@ public class KustoGenericWriteAheadSinkIT {
     types[5] = TypeInformation.of(new TypeHint<String>() {});
     types[6] = TypeInformation.of(new TypeHint<Long>() {});
     types[7] = TypeInformation.of(new TypeHint<String>() {});
-    TypeInformation.of(new TypeHint<Integer>() {});
     for (int i = 0; i < 8; i++) {
       fieldSerializers[i] = types[i].createSerializer(config);
     }
@@ -170,6 +170,45 @@ public class KustoGenericWriteAheadSinkIT {
       row.setField(6, tupleTestObject.getVlong());
       row.setField(7, tupleTestObject.getType());
       testHarness.processElement(new StreamRecord(row));
+      expectedResults.put(tupleTestObject.getVstr(), tupleTestObject.toJsonString());
+    }
+    performTest(testHarness, expectedResults, maxRecords, typeKey);
+  }
+
+  @Test
+  public void testCaseClassIngest() throws Exception {
+    String typeKey = "FlinkCaseClassTest";
+    ExecutionConfig config = new ExecutionConfig();
+    TypeSerializer<?>[] fieldSerializers = new TypeSerializer[8];
+    TypeInformation<?>[] types = new TypeInformation[8];
+    types[0] = TypeInformation.of(new TypeHint<Integer>() {});
+    types[1] = TypeInformation.of(new TypeHint<Double>() {});
+    types[2] = TypeInformation.of(new TypeHint<String>() {});
+    types[3] = TypeInformation.of(new TypeHint<Boolean>() {});
+    types[4] = TypeInformation.of(new TypeHint<Double>() {});
+    types[5] = TypeInformation.of(new TypeHint<String>() {});
+    types[6] = TypeInformation.of(new TypeHint<Long>() {});
+    types[7] = TypeInformation.of(new TypeHint<String>() {});
+    for (int i = 0; i < 8; i++) {
+      fieldSerializers[i] = types[i].createSerializer(config);
+    }
+
+    KustoTupleGenericWriteAheadSink<Row> kustoGenericWriteAheadSink =
+        new KustoTupleGenericWriteAheadSink<>(coordinates, writeOptions, new SimpleCommitter(),
+            new ScalaCaseClassSerializer(scala.Tuple8.class, fieldSerializers),
+            UUID.randomUUID().toString());
+    OneInputStreamOperatorTestHarness<Row, ?> testHarness =
+        new OneInputStreamOperatorTestHarness<>(kustoGenericWriteAheadSink);
+    int maxRecords = 100;
+    Map<String, String> expectedResults = new HashMap<>();
+    testHarness.open();
+    for (int x = 0; x < maxRecords; x++) {
+      TupleTestObject tupleTestObject = new TupleTestObject(x, typeKey);
+      scala.Tuple8<Integer, Double, String, Boolean, Double, String, Long, String> scalaRow =
+          new scala.Tuple8<>(tupleTestObject.getVnum(), tupleTestObject.getVdec(),
+              tupleTestObject.getVdate(), tupleTestObject.isVb(), tupleTestObject.getVreal(),
+              tupleTestObject.getVstr(), tupleTestObject.getVlong(), tupleTestObject.getType());
+      testHarness.processElement(new StreamRecord(scalaRow));
       expectedResults.put(tupleTestObject.getVstr(), tupleTestObject.toJsonString());
     }
     performTest(testHarness, expectedResults, maxRecords, typeKey);
