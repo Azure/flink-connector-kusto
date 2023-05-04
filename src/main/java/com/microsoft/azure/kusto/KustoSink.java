@@ -1,16 +1,22 @@
 package com.microsoft.azure.kusto;
 
+import java.util.UUID;
+
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
+import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.types.Row;
 
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
+import com.microsoft.azure.flink.config.KustoWriteOptions;
+import com.microsoft.azure.flink.writer.internal.KustoTupleGenericWriteAheadSink;
 
 public class KustoSink<IN> {
   private final boolean useDataStreamSink;
@@ -172,12 +178,31 @@ public class KustoSink<IN> {
 
   public static <IN> KustoSinkBuilder<IN> addSink(DataStream<IN> input) {
     TypeInformation<IN> typeInfo = input.getType();
-    return null;
+    // if (typeInfo instanceof TupleTypeInfo) {
+    // DataStream<Tuple> tupleInput = (DataStream<Tuple>) input;
+    // return (CassandraSinkBuilder<IN>)
+    // new CassandraTupleSinkBuilder<>(
+    // tupleInput,
+    // tupleInput.getType(),
+    // tupleInput
+    // .getType()
+    // .createSerializer(
+    // tupleInput.getExecutionEnvironment().getConfig()));
+    // }
+    if (typeInfo instanceof RowTypeInfo) {
+      DataStream<Row> rowInput = (DataStream<Row>) input;
+      return (KustoSinkBuilder<IN>) new KustoRowSinkBuilder(rowInput,
+          rowInput.getType().createSerializer(rowInput.getExecutionEnvironment().getConfig()),
+          rowInput.getType());
+    }
+
+    throw new IllegalArgumentException(
+        "No support for the type of the given DataStream: " + input.getType());
   }
 
   public static abstract class KustoSinkBuilder<IN> {
-    protected KustoConnectionOptions.Builder connectionOptionsBuilder;
-
+    protected KustoConnectionOptions connectionOptions;
+    protected KustoWriteOptions writeOptions;
     protected final DataStream<IN> input;
     protected final TypeSerializer<IN> serializer;
     protected final TypeInformation<IN> typeInfo;
@@ -185,53 +210,64 @@ public class KustoSink<IN> {
 
     public KustoSinkBuilder(DataStream<IN> input, TypeSerializer<IN> serializer,
         TypeInformation<IN> typeInfo) {
-      this.connectionOptionsBuilder = KustoConnectionOptions.builder();
       this.input = input;
       this.serializer = serializer;
       this.typeInfo = typeInfo;
     }
 
     public KustoSinkBuilder<IN> setConnectionOptions(
-        KustoConnectionOptions.Builder connectionOptionsBuilder) {
-      if (this.connectionOptionsBuilder != null) {
+        KustoConnectionOptions connectionOptions) {
+      if (connectionOptions == null) {
         throw new IllegalArgumentException(
-            "Builder was already set. You must use either setHost() or setClusterBuilder().");
+            "Connection options cannot be null. Please use KustoConnectionOptions.Builder() to create one. ");
       }
-      this.connectionOptionsBuilder = connectionOptionsBuilder;
+      this.connectionOptions = connectionOptions;
       return this;
     }
 
-    public KustoSinkBuilder<IN> setCluster(String clusterUrl) {
-      this.connectionOptionsBuilder.setClusterUrl(clusterUrl);
+    public KustoSinkBuilder<IN> setWriteOptions(
+            KustoWriteOptions writeOptions) {
+      if (writeOptions == null) {
+        throw new IllegalArgumentException(
+                "Connection options cannot be null. Please use KustoConnectionOptions.Builder() to create one.");
+      }
+      this.writeOptions = writeOptions;
       return this;
     }
 
-    public KustoSinkBuilder<IN> setAppId(String appId) {
-      this.connectionOptionsBuilder.setAppId(appId);
-      return this;
+    protected abstract KustoSink<IN> createWriteAheadSink() throws Exception;
+    protected void sanityCheck() {
+      if (this.connectionOptions == null) {
+        throw new IllegalArgumentException(
+                "Kusto clusterUri and authentication details must be supplied through the KustoConnectionOptions.");
+      }
+      if (this.writeOptions == null) {
+        throw new IllegalArgumentException(
+                "For KustoSink, the database and table to write should be passed through KustoWriteOptions.");
+      }
     }
-
-    public KustoSinkBuilder<IN> setAppKey(String appKey) {
-      this.connectionOptionsBuilder.setAppKey(appKey);
-      return this;
-    }
-
-    public KustoSinkBuilder<IN> setTenantId(String tenantId) {
-      this.connectionOptionsBuilder.setTenantId(tenantId);
-      return this;
-    }
-
-    public KustoSinkBuilder<IN> setManagedIdentityAppId(String managedIdentityAppId) {
-      this.connectionOptionsBuilder.setManagedIdentityAppId(managedIdentityAppId);
-      return this;
+    public KustoSink<IN> build() throws Exception {
+      sanityCheck();
+      return createWriteAheadSink() ;
     }
   }
 
   public static class KustoRowSinkBuilder extends KustoSinkBuilder<Row> {
-
     public KustoRowSinkBuilder(DataStream<Row> input, TypeSerializer<Row> serializer,
         TypeInformation<Row> typeInfo) {
       super(input, serializer, typeInfo);
+    }
+
+    @Override
+    protected KustoSink<Row> createWriteAheadSink() throws Exception {
+      new KustoSink<Row>(
+              input.transform(
+                      "Kusto Sink",
+                      null,
+                      new KustoTupleGenericWriteAheadSink<>(
+                              this.connectionOptions, this.writeOptions, null,this.serializer, //TODO fix this
+                              UUID.randomUUID().toString())));
+      return null;
     }
   }
 }
