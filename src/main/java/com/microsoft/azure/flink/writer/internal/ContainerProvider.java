@@ -102,7 +102,15 @@ public class ContainerProvider implements Serializable {
         return null;
       } catch (IOException | DataServiceException | DataClientException | URISyntaxException e) {
         LOG.error("Failed to get temp storage container", e);
-        throw new RuntimeException(e);
+        if (CONTAINER_SAS.isEmpty()) {
+          throw new RuntimeException(e);
+        } else {
+          LOG.warn("Failed to get temp storage container. "
+              + "To cover for transient failures, returning an existing container."
+              + "If the SAS keys have expired, the flow will fail further in the flow", e);
+          int index = this.randomGenerator.nextInt(CONTAINER_SAS.size());
+          return CONTAINER_SAS.get(index);
+        }
       }
     };
   }
