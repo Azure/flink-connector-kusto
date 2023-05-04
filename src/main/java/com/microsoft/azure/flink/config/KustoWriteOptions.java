@@ -13,13 +13,17 @@ public class KustoWriteOptions {
   private final String ingestionMappingRef;
 
   private final boolean flushImmediately;
+  private final long batchIntervalMs;
+  private final long batchSize;
 
   private KustoWriteOptions(String database, String table, String ingestionMappingRef,
-      boolean flushImmediately) {
+      boolean flushImmediately, long batchIntervalMs, long batchSize) {
     this.database = checkNotNull(database);
     this.table = checkNotNull(table);
     this.ingestionMappingRef = ingestionMappingRef;
     this.flushImmediately = flushImmediately;
+    this.batchIntervalMs = batchIntervalMs;
+    this.batchSize = batchSize;
   }
 
   public String getDatabase() {
@@ -38,6 +42,13 @@ public class KustoWriteOptions {
     return flushImmediately;
   }
 
+  public long getBatchIntervalMs() {
+    return batchIntervalMs;
+  }
+
+  public long getBatchSize() {
+    return batchSize;
+  }
 
 
   @Override
@@ -70,6 +81,8 @@ public class KustoWriteOptions {
     private String ingestionMappingRef = null;
 
     private boolean flushImmediately = false;
+    private long batchIntervalMs = 5_000L; // Set up a default batch interval of 5 seconds
+    private long batchSize = 1000L; // Or 1000 records
 
     private Builder() {}
 
@@ -118,9 +131,26 @@ public class KustoWriteOptions {
       return this;
     }
 
+    /**
+     * Sets the batch interval ms to flush , defaults to 5 seconds
+     *
+     * @param batchSize
+     * @return
+     */
+    public KustoWriteOptions.Builder withBatchSize(long batchSize) {
+      this.batchSize = batchSize;
+      return this;
+    }
+
+    public KustoWriteOptions.Builder withBatchIntervalMs(long batchIntervalMs) {
+      this.batchIntervalMs = batchIntervalMs;
+      return this;
+    }
+
 
     public KustoWriteOptions build() {
-      return new KustoWriteOptions(database, table, ingestionMappingRef, flushImmediately);
+      return new KustoWriteOptions(database, table, ingestionMappingRef, flushImmediately,
+          batchIntervalMs, batchSize);
     }
   }
 }
