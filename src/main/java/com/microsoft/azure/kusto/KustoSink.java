@@ -11,7 +11,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
-import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 import org.apache.flink.types.Row;
 
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
@@ -215,8 +214,7 @@ public class KustoSink<IN> {
       this.typeInfo = typeInfo;
     }
 
-    public KustoSinkBuilder<IN> setConnectionOptions(
-        KustoConnectionOptions connectionOptions) {
+    public KustoSinkBuilder<IN> setConnectionOptions(KustoConnectionOptions connectionOptions) {
       if (connectionOptions == null) {
         throw new IllegalArgumentException(
             "Connection options cannot be null. Please use KustoConnectionOptions.Builder() to create one. ");
@@ -225,30 +223,31 @@ public class KustoSink<IN> {
       return this;
     }
 
-    public KustoSinkBuilder<IN> setWriteOptions(
-            KustoWriteOptions writeOptions) {
+    public KustoSinkBuilder<IN> setWriteOptions(KustoWriteOptions writeOptions) {
       if (writeOptions == null) {
         throw new IllegalArgumentException(
-                "Connection options cannot be null. Please use KustoConnectionOptions.Builder() to create one.");
+            "Connection options cannot be null. Please use KustoConnectionOptions.Builder() to create one.");
       }
       this.writeOptions = writeOptions;
       return this;
     }
 
     protected abstract KustoSink<IN> createWriteAheadSink() throws Exception;
+
     protected void sanityCheck() {
       if (this.connectionOptions == null) {
         throw new IllegalArgumentException(
-                "Kusto clusterUri and authentication details must be supplied through the KustoConnectionOptions.");
+            "Kusto clusterUri and authentication details must be supplied through the KustoConnectionOptions.");
       }
       if (this.writeOptions == null) {
         throw new IllegalArgumentException(
-                "For KustoSink, the database and table to write should be passed through KustoWriteOptions.");
+            "For KustoSink, the database and table to write should be passed through KustoWriteOptions.");
       }
     }
+
     public KustoSink<IN> build() throws Exception {
       sanityCheck();
-      return createWriteAheadSink() ;
+      return createWriteAheadSink();
     }
   }
 
@@ -260,13 +259,10 @@ public class KustoSink<IN> {
 
     @Override
     protected KustoSink<Row> createWriteAheadSink() throws Exception {
-      new KustoSink<Row>(
-              input.transform(
-                      "Kusto Sink",
-                      null,
-                      new KustoTupleGenericWriteAheadSink<>(
-                              this.connectionOptions, this.writeOptions, null,this.serializer, //TODO fix this
-                              UUID.randomUUID().toString())));
+      new KustoSink<Row>(input.transform("Kusto Sink", null,
+          new KustoTupleGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions, null,
+              this.serializer, // TODO fix this
+              UUID.randomUUID().toString())));
       return null;
     }
   }
