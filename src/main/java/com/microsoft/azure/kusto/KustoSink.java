@@ -16,6 +16,7 @@ import org.apache.flink.types.Row;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 import com.microsoft.azure.flink.writer.internal.KustoGenericWriteAheadSink;
+import com.microsoft.azure.flink.writer.internal.committer.KustoCommitter;
 
 public class KustoSink<IN> {
   private final boolean useDataStreamSink;
@@ -260,8 +261,8 @@ public class KustoSink<IN> {
     @Override
     protected KustoSink<Row> createWriteAheadSink() throws Exception {
       new KustoSink<Row>(input.transform("Kusto Sink", null,
-          new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions, null,
-              this.serializer, // TODO fix this
+          new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
+              new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
               UUID.randomUUID().toString())));
       return null;
     }

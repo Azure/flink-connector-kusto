@@ -16,7 +16,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.microsoft.azure.flink.common.IngestClientUtil;
+import com.microsoft.azure.flink.common.KustoClientUtil;
 import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.writer.internal.container.ContainerSas;
@@ -80,7 +80,7 @@ public class ContainerProvider implements Serializable {
 
   private Supplier<ContainerSas> getContainerSupplier() {
     return () -> {
-      try (Client ingestClient = IngestClientUtil.createClient(checkNotNull(this.connectionOptions,
+      try (Client ingestClient = KustoClientUtil.createDMClient(checkNotNull(this.connectionOptions,
           "Connection options passed to DM client cannot be null."))) {
         CONTAINER_SAS.clear();
         KustoOperationResult queryResult = ingestClient.execute(GET_TEMP_STORAGE_CONTAINER);

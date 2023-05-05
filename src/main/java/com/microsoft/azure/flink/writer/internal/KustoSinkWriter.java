@@ -36,6 +36,7 @@ import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +45,7 @@ import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobContainerClientBuilder;
 import com.azure.storage.blob.specialized.BlobOutputStream;
-import com.microsoft.azure.flink.common.IngestClientUtil;
+import com.microsoft.azure.flink.common.KustoClientUtil;
 import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.common.KustoRetryUtil;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
@@ -84,8 +85,8 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
 
 
   public KustoSinkWriter(KustoConnectionOptions connectionOptions, KustoWriteOptions writeOptions,
-      TypeSerializer<IN> serializer, boolean flushOnCheckpoint, Sink.InitContext initContext)
-      throws Exception {
+      @NotNull TypeSerializer<IN> serializer, boolean flushOnCheckpoint,
+      Sink.InitContext initContext) throws Exception {
     this.connectionOptions = connectionOptions;
     this.writeOptions = writeOptions;
     // Use a CaseClass or Tuple or Row to ingest data
@@ -102,7 +103,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
   }
 
   public void open() throws Exception {
-    this.ingestClient = IngestClientUtil.createIngestClient(checkNotNull(this.connectionOptions,
+    this.ingestClient = KustoClientUtil.createIngestClient(checkNotNull(this.connectionOptions,
         "Connection options passed to ingest client cannot be null."));
     if (Tuple.class.isAssignableFrom(clazzType)) {
       int arity = (((TupleSerializer<?>) this.serializer)).getArity();
@@ -184,11 +185,13 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
         }
         gzip.write(System.lineSeparator().getBytes());
       }
+      this.bulkRequests.clear();
     } catch (IOException e) {
       LOG.error("Error (IOException) while writing to blob.", e);
       isUploadSuccessful = false;
     }
     if (isUploadSuccessful) {
+      // The process is completed, so we can clear the bulkRequests
       IngestionResult ingestionResult =
           KustoRetryUtil.getRetries(KustoRetryConfig.builder().build())
               .executeSupplier(performIngestSupplier(uploadContainerSas, blobName, sourceId));
@@ -208,14 +211,15 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
     }
   }
 
-  private Supplier<IngestionResult> performIngestSupplier(@NotNull ContainerSas container,
+  @Contract(pure = true)
+  private @NotNull Supplier<IngestionResult> performIngestSupplier(@NotNull ContainerSas container,
       @NotNull String blobName, UUID sourceId) {
     return () -> {
       try {
         String blobUri = String.format("%s/%s?%s", container.getContainerUrl(), blobName,
             container.getSasToken());
         BlobSourceInfo blobSourceInfo = new BlobSourceInfo(blobUri);
-        LOG.info("Ingesting into blob: {} with source id {}", blobUri, sourceId);
+        LOG.error("Ingesting into blob: {} with source id {}", blobUri, sourceId);
         blobSourceInfo.setSourceId(sourceId);
         IngestionProperties ingestionProperties =
             new IngestionProperties(this.writeOptions.getDatabase(), this.writeOptions.getTable());
@@ -255,7 +259,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
             "Polling for ingestion of source id: " + sourceId + " timed out."));
       }
       try {
-        LOG.info("Ingestion Status {}",
+        LOG.error("Ingestion Status {}",
             ingestionResult.getIngestionStatusCollection().stream()
                 .map(is -> is.getIngestionSourceId() + "::" + is.getStatus())
                 .collect(Collectors.joining(",")));
@@ -313,6 +317,8 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
     this.numRecordsOut.inc();
     this.collector.collect(in);
     if (isOverMaxBatchSizeLimit() || isOverMaxBatchIntervalLimit()) {
+      LOG.error("Bulk write limit reached. Performing bulk write. Record count {}",
+          this.bulkRequests.size());
       bulkWrite();
     }
   }
@@ -321,8 +327,11 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
   public void flush(boolean endOfInput) throws IOException, InterruptedException {
     this.checkpointInProgress = true;
     while (!bulkRequests.isEmpty() && (this.flushOnCheckpoint || endOfInput)) {
+      LOG.error("Bulk write time limit reached or batch size, flushing records. Record count {}",
+          this.bulkRequests.size());
       bulkWrite();
     }
+    this.checkpointInProgress = false;
   }
 
   private boolean isOverMaxBatchSizeLimit() {

@@ -35,7 +35,7 @@ import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobContainerClientBuilder;
 import com.azure.storage.blob.specialized.BlobOutputStream;
-import com.microsoft.azure.flink.common.IngestClientUtil;
+import com.microsoft.azure.flink.common.KustoClientUtil;
 import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.common.KustoRetryUtil;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
@@ -83,7 +83,7 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
     if (!getRuntimeContext().isCheckpointingEnabled()) {
       throw new IllegalStateException("The write-ahead log requires checkpointing to be enabled.");
     }
-    this.ingestClient = IngestClientUtil.createIngestClient(checkNotNull(this.connectionOptions,
+    this.ingestClient = KustoClientUtil.createIngestClient(checkNotNull(this.connectionOptions,
         "Connection options passed to ingest client cannot be null."));
     if (Tuple.class.isAssignableFrom(clazzType)) {
       int arity = (((TupleSerializer<?>) serializer)).getArity();
@@ -98,7 +98,7 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
   }
 
   @Override
-  protected boolean sendValues(Iterable<IN> values, long checkpointId, long timestamp) {
+  protected boolean sendValues(@NotNull Iterable<IN> values, long checkpointId, long timestamp) {
     // Get the blob
     // Write to the blob
     // have the ingest client send out request for ingestion

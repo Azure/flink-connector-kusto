@@ -25,7 +25,9 @@ public class ITSetup {
     String defaultTable =
         String.format("tmpFlinkSinkIT_%s", UUID.randomUUID().toString().replace('-', '_'));
     String table = getProperty("table", defaultTable, true);
-    return KustoWriteOptions.builder().withDatabase(database).withTable(table).build();
+    return KustoWriteOptions.builder().withDatabase(database).withTable(table)
+        .withBatchIntervalMs(-1).withBatchSize(100).build(); // TODO check the -1 batch interval
+                                                             // value
   }
 
   private static String getProperty(String attribute, String defaultValue, boolean sanitize) {
@@ -38,5 +40,4 @@ public class ITSetup {
     value = StringUtils.isEmpty(value) ? defaultValue : value;
     return sanitize ? FilenameUtils.normalizeNoEndSeparator(value) : value;
   }
-
 }
