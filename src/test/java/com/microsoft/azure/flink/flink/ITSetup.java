@@ -15,7 +15,6 @@ public class ITSetup {
     String appKey = getProperty("appKey", "", false);
     String authority = getProperty("authority", "", false);
     String cluster = getProperty("cluster", "", false);
-    String defaultTable = testPrefix + UUID.randomUUID().toString().replace('-', '_');
     return KustoConnectionOptions.builder().setAppId(appId).setAppKey(appKey).setTenantId(authority)
         .setClusterUrl(cluster).build();
   }

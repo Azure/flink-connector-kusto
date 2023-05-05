@@ -1,12 +1,16 @@
 package com.microsoft.azure.kusto;
 
 import java.util.UUID;
+import scala.Product;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -176,26 +180,27 @@ public class KustoSink<IN> {
     return addSink(input.javaStream());
   }
 
+  @SuppressWarnings({"unchecked"})
   public static <IN> KustoSinkBuilder<IN> addSink(DataStream<IN> input) {
     TypeInformation<IN> typeInfo = input.getType();
-    // if (typeInfo instanceof TupleTypeInfo) {
-    // DataStream<Tuple> tupleInput = (DataStream<Tuple>) input;
-    // return (CassandraSinkBuilder<IN>)
-    // new CassandraTupleSinkBuilder<>(
-    // tupleInput,
-    // tupleInput.getType(),
-    // tupleInput
-    // .getType()
-    // .createSerializer(
-    // tupleInput.getExecutionEnvironment().getConfig()));
-    // }
+     if (typeInfo instanceof TupleTypeInfo) {
+       DataStream<Tuple> rowInput = (DataStream<Tuple>) input;
+       return (KustoSinkBuilder<IN>) new KustoTupleSinkBuilder<>(rowInput,
+               rowInput.getType().createSerializer(rowInput.getExecutionEnvironment().getConfig()),
+               rowInput.getType());
+     }
     if (typeInfo instanceof RowTypeInfo) {
       DataStream<Row> rowInput = (DataStream<Row>) input;
       return (KustoSinkBuilder<IN>) new KustoRowSinkBuilder(rowInput,
           rowInput.getType().createSerializer(rowInput.getExecutionEnvironment().getConfig()),
           rowInput.getType());
     }
-
+    if (typeInfo instanceof CaseClassTypeInfo) {
+      DataStream<Product> rowInput = (DataStream<Product>) input;
+      return (KustoSinkBuilder<IN>) new KustoProductSinkBuilder<>(rowInput,
+              rowInput.getType().createSerializer(rowInput.getExecutionEnvironment().getConfig()),
+              rowInput.getType());
+    }
     throw new IllegalArgumentException(
         "No support for the type of the given DataStream: " + input.getType());
   }
@@ -260,10 +265,39 @@ public class KustoSink<IN> {
 
     @Override
     protected KustoSink<Row> createWriteAheadSink() throws Exception {
-      new KustoSink<Row>(input.transform("Kusto Sink", null,
+      new KustoSink<>(input.transform("Kusto Row Sink", null,
           new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
               new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
               UUID.randomUUID().toString())));
+      return null;
+    }
+  }
+  public static class KustoTupleSinkBuilder<IN extends Tuple> extends KustoSinkBuilder<IN> {
+    public KustoTupleSinkBuilder(DataStream<IN> input, TypeSerializer<IN> serializer,
+                               TypeInformation<IN> typeInfo) {
+      super(input, serializer, typeInfo);
+    }
+
+    @Override
+    protected KustoSink<IN> createWriteAheadSink() throws Exception {
+      new KustoSink<>(input.transform("Kusto Tuple Sink", null,
+              new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
+                      new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
+                      UUID.randomUUID().toString())));
+      return null;
+    }
+  }
+  public static class KustoProductSinkBuilder<IN extends Product> extends KustoSinkBuilder<IN> {
+    public KustoProductSinkBuilder(DataStream<IN> input, TypeSerializer<IN> serializer,
+                                 TypeInformation<IN> typeInfo) {
+      super(input, serializer, typeInfo);
+    }
+    @Override
+    protected KustoSink<IN> createWriteAheadSink() throws Exception {
+      new KustoSink<>(input.transform("Kusto Product Sink", null,
+              new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
+                      new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
+                      UUID.randomUUID().toString())));
       return null;
     }
   }

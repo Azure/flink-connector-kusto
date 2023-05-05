@@ -64,7 +64,7 @@ public class KustoCommitter extends CheckpointCommitter {
         ".create-merge table %s (job_id:string, sink_id:string, sub_id:int, checkpoint_id:long) with (hidden=true,folder='Flink',docstring='Checkpointing table in Flink')",
         this.table);
     String retentionPolicy = String.format(
-        ".alter-merge table %s policy retention softdelete = 1d recoverability = disabled",
+        ".alter-merge table %s policy retention softdelete = 1d recoverability = disabled",//TODO make this configurable
         this.table);
     try {
       queryClient.execute(this.kustoWriteOptions.getDatabase(), createCheckpointTable);
@@ -73,6 +73,7 @@ public class KustoCommitter extends CheckpointCommitter {
       LOG.error(
           "Error while creating resources. To use the KustoCommitter you need to have admin privileges on the database {}",
           this.kustoWriteOptions.getDatabase(), e);
+      throw e;
     }
   }
 

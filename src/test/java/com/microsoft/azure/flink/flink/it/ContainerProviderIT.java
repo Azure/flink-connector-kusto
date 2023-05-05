@@ -26,7 +26,7 @@ public class ContainerProviderIT {
   }
 
   @Test
-  public void containerSasShouldBeQueriedFromDM() throws ExecutionException, InterruptedException {
+  public void containerSasShouldBeQueriedFromDM() {
     assertNotNull(containerProvider);
     assertNotNull(containerProvider.getBlobContainer());
     long expirationTimestamp = containerProvider.getExpirationTimestamp();

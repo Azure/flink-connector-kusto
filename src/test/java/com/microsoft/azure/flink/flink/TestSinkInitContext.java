@@ -81,7 +81,7 @@ public class TestSinkInitContext implements Sink.InitContext {
       @Override
       public ScheduledFuture<?> registerTimer(long time,
           ProcessingTimeCallback processingTimerCallback) {
-        processingTimeService.registerTimer(time, processingTimerCallback::onProcessingTime);
+        processingTimeService.registerTimer(time, processingTimerCallback);
         return null;
       }
     };
