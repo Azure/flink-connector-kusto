@@ -65,32 +65,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class KustoSinkWriter<IN> implements SinkWriter<IN> {
   protected static final Logger LOG = LoggerFactory.getLogger(KustoSinkWriter.class);
-
   private final KustoConnectionOptions connectionOptions;
   private final KustoWriteOptions writeOptions;
   private final boolean flushOnCheckpoint;
-
   private boolean checkpointInProgress = false;
-
   private final MailboxExecutor mailboxExecutor;
-
   private IngestClient ingestClient;
-
   private transient Object[] fields;
-
   private final transient Class<?> clazzType;
   private final TypeSerializer<IN> serializer;
-
   private volatile long ackTime = Long.MAX_VALUE;
-
   private volatile long lastSendTime = 0L;
-
   private final Counter numRecordsOut;
-
   private final List<IN> bulkRequests = new ArrayList<>();
-
   private final Collector<IN> collector;
-
   private final ScheduledExecutorService pollResultsExecutor =
       Executors.newSingleThreadScheduledExecutor();
 
@@ -100,6 +88,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
       throws Exception {
     this.connectionOptions = connectionOptions;
     this.writeOptions = writeOptions;
+    // Use a CaseClass or Tuple or Row to ingest data
     this.serializer = serializer;
     this.clazzType = serializer.createInstance().getClass();
     this.flushOnCheckpoint = flushOnCheckpoint;
@@ -254,9 +243,9 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
       IngestionResult ingestionResult) {
     CompletableFuture<String> completionFuture = new CompletableFuture<>();
     long timeToEndPoll = Instant.now(Clock.systemUTC()).plus(5, ChronoUnit.MINUTES).toEpochMilli(); // TODO:
-                                                                                                    // make
-                                                                                                    // this
-                                                                                                    // configurable
+    // make
+    // this
+    // configurable
     final ScheduledFuture<?> checkFuture = pollResultsExecutor.scheduleAtFixedRate(() -> {
       if (Instant.now(Clock.systemUTC()).toEpochMilli() > timeToEndPoll) {
         LOG.warn(

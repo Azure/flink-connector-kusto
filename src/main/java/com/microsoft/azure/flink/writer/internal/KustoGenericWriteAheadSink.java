@@ -69,8 +69,8 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
 
 
   public KustoGenericWriteAheadSink(KustoConnectionOptions connectionOptions,
-                                    KustoWriteOptions writeOptions, CheckpointCommitter committer, TypeSerializer<IN> serializer,
-                                    String jobID) throws Exception {
+      KustoWriteOptions writeOptions, CheckpointCommitter committer, TypeSerializer<IN> serializer,
+      String jobID) throws Exception {
     super(committer, serializer, jobID);
     this.connectionOptions = connectionOptions;
     this.writeOptions = writeOptions;

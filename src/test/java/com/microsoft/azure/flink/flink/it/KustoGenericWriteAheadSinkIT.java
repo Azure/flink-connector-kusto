@@ -116,8 +116,7 @@ public class KustoGenericWriteAheadSinkIT {
         TypeInformation.of(
             new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {})
             .createSerializer(new ExecutionConfig());
-    KustoGenericWriteAheadSink<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>
-            kustoGenericWriteAheadSink =
+    KustoGenericWriteAheadSink<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> kustoGenericWriteAheadSink =
         new KustoGenericWriteAheadSink<>(coordinates, writeOptions, new SimpleCommitter(),
             serializer, UUID.randomUUID().toString());
     OneInputStreamOperatorTestHarness<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>, ?> testHarness =
