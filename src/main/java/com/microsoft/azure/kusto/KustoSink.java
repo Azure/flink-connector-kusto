@@ -1,7 +1,6 @@
 package com.microsoft.azure.kusto;
 
 import java.util.UUID;
-import scala.Product;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -21,6 +20,8 @@ import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 import com.microsoft.azure.flink.writer.internal.KustoGenericWriteAheadSink;
 import com.microsoft.azure.flink.writer.internal.committer.KustoCommitter;
+
+import scala.Product;
 
 public class KustoSink<IN> {
   private final boolean useDataStreamSink;
@@ -183,12 +184,12 @@ public class KustoSink<IN> {
   @SuppressWarnings({"unchecked"})
   public static <IN> KustoSinkBuilder<IN> addSink(DataStream<IN> input) {
     TypeInformation<IN> typeInfo = input.getType();
-     if (typeInfo instanceof TupleTypeInfo) {
-       DataStream<Tuple> rowInput = (DataStream<Tuple>) input;
-       return (KustoSinkBuilder<IN>) new KustoTupleSinkBuilder<>(rowInput,
-               rowInput.getType().createSerializer(rowInput.getExecutionEnvironment().getConfig()),
-               rowInput.getType());
-     }
+    if (typeInfo instanceof TupleTypeInfo) {
+      DataStream<Tuple> rowInput = (DataStream<Tuple>) input;
+      return (KustoSinkBuilder<IN>) new KustoTupleSinkBuilder<>(rowInput,
+          rowInput.getType().createSerializer(rowInput.getExecutionEnvironment().getConfig()),
+          rowInput.getType());
+    }
     if (typeInfo instanceof RowTypeInfo) {
       DataStream<Row> rowInput = (DataStream<Row>) input;
       return (KustoSinkBuilder<IN>) new KustoRowSinkBuilder(rowInput,
@@ -198,8 +199,8 @@ public class KustoSink<IN> {
     if (typeInfo instanceof CaseClassTypeInfo) {
       DataStream<Product> rowInput = (DataStream<Product>) input;
       return (KustoSinkBuilder<IN>) new KustoProductSinkBuilder<>(rowInput,
-              rowInput.getType().createSerializer(rowInput.getExecutionEnvironment().getConfig()),
-              rowInput.getType());
+          rowInput.getType().createSerializer(rowInput.getExecutionEnvironment().getConfig()),
+          rowInput.getType());
     }
     throw new IllegalArgumentException(
         "No support for the type of the given DataStream: " + input.getType());
@@ -274,30 +275,31 @@ public class KustoSink<IN> {
   }
   public static class KustoTupleSinkBuilder<IN extends Tuple> extends KustoSinkBuilder<IN> {
     public KustoTupleSinkBuilder(DataStream<IN> input, TypeSerializer<IN> serializer,
-                               TypeInformation<IN> typeInfo) {
+        TypeInformation<IN> typeInfo) {
       super(input, serializer, typeInfo);
     }
 
     @Override
     protected KustoSink<IN> createWriteAheadSink() throws Exception {
       new KustoSink<>(input.transform("Kusto Tuple Sink", null,
-              new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
-                      new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
-                      UUID.randomUUID().toString())));
+          new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
+              new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
+              UUID.randomUUID().toString())));
       return null;
     }
   }
   public static class KustoProductSinkBuilder<IN extends Product> extends KustoSinkBuilder<IN> {
     public KustoProductSinkBuilder(DataStream<IN> input, TypeSerializer<IN> serializer,
-                                 TypeInformation<IN> typeInfo) {
+        TypeInformation<IN> typeInfo) {
       super(input, serializer, typeInfo);
     }
+
     @Override
     protected KustoSink<IN> createWriteAheadSink() throws Exception {
       new KustoSink<>(input.transform("Kusto Product Sink", null,
-              new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
-                      new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
-                      UUID.randomUUID().toString())));
+          new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
+              new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
+              UUID.randomUUID().toString())));
       return null;
     }
   }

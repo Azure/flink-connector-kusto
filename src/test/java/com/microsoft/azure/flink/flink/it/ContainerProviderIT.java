@@ -1,7 +1,5 @@
 package com.microsoft.azure.flink.flink.it;
 
-import java.util.concurrent.ExecutionException;
-
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
