@@ -250,7 +250,6 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
     };
   }
 
-  // https://stackoverflow.com/questions/40251528/how-to-use-executorservice-to-poll-until-a-result-arrives
   private CompletableFuture<String> pollForCompletion(final String sourceId,
       IngestionResult ingestionResult) {
     CompletableFuture<String> completionFuture = new CompletableFuture<>();

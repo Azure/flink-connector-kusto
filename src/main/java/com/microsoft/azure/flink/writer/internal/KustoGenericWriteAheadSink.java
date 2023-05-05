@@ -54,7 +54,7 @@ import scala.Product;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-public class KustoTupleGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
+public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
   private final KustoConnectionOptions connectionOptions;
   private final KustoWriteOptions writeOptions;
 
@@ -68,9 +68,9 @@ public class KustoTupleGenericWriteAheadSink<IN> extends GenericWriteAheadSink<I
       Executors.newSingleThreadScheduledExecutor();
 
 
-  public KustoTupleGenericWriteAheadSink(KustoConnectionOptions connectionOptions,
-      KustoWriteOptions writeOptions, CheckpointCommitter committer, TypeSerializer<IN> serializer,
-      String jobID) throws Exception {
+  public KustoGenericWriteAheadSink(KustoConnectionOptions connectionOptions,
+                                    KustoWriteOptions writeOptions, CheckpointCommitter committer, TypeSerializer<IN> serializer,
+                                    String jobID) throws Exception {
     super(committer, serializer, jobID);
     this.connectionOptions = connectionOptions;
     this.writeOptions = writeOptions;
