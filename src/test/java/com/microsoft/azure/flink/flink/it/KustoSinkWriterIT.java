@@ -22,7 +22,6 @@ import org.apache.flink.api.java.tuple.Tuple8;
 import org.json.JSONException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.skyscreamer.jsonassert.Customization;
 import org.skyscreamer.jsonassert.JSONAssert;
@@ -53,10 +52,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.skyscreamer.jsonassert.JSONCompareMode.LENIENT;
 
-@Disabled
 public class KustoSinkWriterIT {
   private static final Logger LOG = LoggerFactory.getLogger(KustoSinkWriterIT.class);
-
   private static final String KEY_COL = "vstr";
   private static Client engineClient;
   private static Client dmClient;

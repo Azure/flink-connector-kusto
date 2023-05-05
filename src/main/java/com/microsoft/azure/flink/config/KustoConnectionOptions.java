@@ -10,7 +10,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** The connection configuration class for Kusto. */
 @PublicEvolving
 public class KustoConnectionOptions implements Serializable {
-
   private static final String INGEST_PREFIX = "ingest-";
   private static final String PROTOCOL_SUFFIX = "://";
   private final String clusterUrl;
