@@ -2,6 +2,7 @@ package com.microsoft.azure.flink.writer.internal.committer;
 
 import java.io.ByteArrayInputStream;
 import java.net.URISyntaxException;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,28 +24,31 @@ import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
 import com.microsoft.azure.kusto.ingest.source.StreamSourceInfo;
 
 public class KustoCommitter extends CheckpointCommitter {
-
   private static final long serialVersionUID = 1L;
-
   private final KustoConnectionOptions connectionOptions;
   private final KustoWriteOptions kustoWriteOptions;
   private IngestClient streamingIngestClient;
   private final Client queryClient;
-
   private final String table = "flink_checkpoints";
-
-
 
   /**
    * A cache of the last committed checkpoint ids per subtask index. This is used to avoid redundant
-   * round-trips to Cassandra (see {@link #isCheckpointCommitted(int, long)}.
+   * round-trips to Kusto (see {@link #isCheckpointCommitted(int, long)}.
    */
   private final Map<Integer, Long> lastCommittedCheckpoints = new HashMap<>();
 
+  /**
+   * Creates a new {@link KustoCommitter} instance.
+   *
+   * @param connectionOptions The connection options for the Kusto cluster.
+   * @param kustoWriteOptions The write options for the Kusto cluster.
+   * @throws URISyntaxException If the connection string is invalid.
+   */
   public KustoCommitter(KustoConnectionOptions connectionOptions,
       KustoWriteOptions kustoWriteOptions) throws URISyntaxException {
     this.connectionOptions = connectionOptions;
     this.kustoWriteOptions = kustoWriteOptions;
+    // Need this to be available before the createResource call hits
     this.queryClient = KustoClientUtil.createClient(this.connectionOptions);
   }
 
@@ -55,22 +59,26 @@ public class KustoCommitter extends CheckpointCommitter {
   }
 
   /**
-   * Generates the necessary tables to store information.
-   *
+   * Generates the necessary tables to store information on the checkpoint.
    */
   @Override
   public void createResource() throws Exception {
+    long startTime = Instant.now().toEpochMilli();
+    LOG.debug(
+        "Creating resources for KustoCommitter. Creating table {} in database {} and applying policies",
+        this.table, this.kustoWriteOptions.getDatabase());
     String createCheckpointTable = String.format(
         ".create-merge table %s (job_id:string, sink_id:string, sub_id:int, checkpoint_id:long) with (hidden=true,folder='Flink',docstring='Checkpointing table in Flink')",
         this.table);
+    String enableStreaming = String.format(
+        ".alter-merge table %s policy streamingingestion '{\"IsEnabled\": true}'", this.table);
     String retentionPolicy = String.format(
         ".alter-merge table %s policy retention softdelete = 1d recoverability = disabled", // TODO
-                                                                                            // make
-                                                                                            // this
                                                                                             // configurable
         this.table);
     try {
       queryClient.execute(this.kustoWriteOptions.getDatabase(), createCheckpointTable);
+      queryClient.execute(this.kustoWriteOptions.getDatabase(), enableStreaming);
       queryClient.execute(this.kustoWriteOptions.getDatabase(), retentionPolicy);
     } catch (Exception e) {
       LOG.error(
@@ -78,21 +86,27 @@ public class KustoCommitter extends CheckpointCommitter {
           this.kustoWriteOptions.getDatabase(), e);
       throw e;
     }
+    LOG.debug("Created resources for KustoCommitter. Table {} in database {} took {} ms",
+        this.table, this.kustoWriteOptions.getDatabase(), Instant.now().toEpochMilli() - startTime);
   }
 
   @Override
   public void open() throws Exception {
+    LOG.debug("Opening KustoCommitter");
     if (this.connectionOptions == null || this.kustoWriteOptions == null) {
-      throw new RuntimeException("No Connection options were provided or WriteOptions were null");
+      throw new IllegalArgumentException(
+          "No Connection options were provided or WriteOptions were null");
     }
     if (StringUtils.isEmpty(this.kustoWriteOptions.getDatabase())) {
-      throw new RuntimeException("No Connection options were provided or WriteOptions were null");
+      throw new IllegalArgumentException("Database provided was empty for KustoCommitter");
     }
     this.streamingIngestClient = KustoClientUtil.createMangedIngestClient(this.connectionOptions);
+    LOG.debug("Opened KustoCommitter");
   }
 
   @Override
   public void close() throws Exception {
+    LOG.debug("Closing KustoCommitter");
     this.lastCommittedCheckpoints.clear();
     try {
       this.streamingIngestClient.close();
@@ -100,10 +114,21 @@ public class KustoCommitter extends CheckpointCommitter {
     } catch (Exception e) {
       LOG.warn("Error while closing resources.", e);
     }
+    LOG.debug("Closed KustoCommitter");
   }
 
+  /**
+   * Given a specific subtask and checkpoint id commits these values against the job to enable
+   * recoverability.
+   *
+   * @param subtaskIdx The subtask index.
+   * @param checkpointId The checkpoint id.
+   */
   @Override
   public void commitCheckpoint(int subtaskIdx, long checkpointId) {
+    long startTime = Instant.now().toEpochMilli();
+    LOG.info("Starting checkpoint {} for subtask {} at {}", checkpointId, subtaskIdx,
+        Instant.now().toEpochMilli());
     String payload = String.format("%s,%s,%d,%d", StringEscapeUtils.escapeCsv(jobId),
         StringEscapeUtils.escapeCsv(operatorId), subtaskIdx, checkpointId);
     IngestionProperties properties =
@@ -118,11 +143,21 @@ public class KustoCommitter extends CheckpointCommitter {
           this.kustoWriteOptions.getDatabase(), e);
       throw new RuntimeException(e);
     }
+    LOG.info("Committed checkpoint {} for subtask {} in {} ms", checkpointId, subtaskIdx,
+        Instant.now().toEpochMilli() - startTime);
     lastCommittedCheckpoints.put(subtaskIdx, checkpointId);
   }
 
+  /**
+   * Checks if a checkpoint has been committed for a specific subtask.
+   *
+   * @param subtaskIdx The subtask index.
+   * @param checkpointId The checkpoint id.
+   * @return True if the checkpoint has been committed, false otherwise.
+   */
   @Override
   public boolean isCheckpointCommitted(int subtaskIdx, long checkpointId) {
+    long startTime = Instant.now().toEpochMilli();
     Long lastCommittedCheckpoint = lastCommittedCheckpoints.get(subtaskIdx);
     if (lastCommittedCheckpoint == null) {
       String statement = String.format(
@@ -142,6 +177,7 @@ public class KustoCommitter extends CheckpointCommitter {
         throw new RuntimeException(e);
       }
     }
+    LOG.info("Checkpoint query took {} ms", Instant.now().toEpochMilli() - startTime);
     return lastCommittedCheckpoint != null && checkpointId <= lastCommittedCheckpoint;
   }
 }

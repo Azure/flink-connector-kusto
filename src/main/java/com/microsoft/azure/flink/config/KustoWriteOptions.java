@@ -1,29 +1,53 @@
 package com.microsoft.azure.flink.config;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * Options for configuring a Kusto sink. Passes on ClientOptions. Also provides a set of developer
+ * options to fine tune behavior
+ */
 public class KustoWriteOptions {
+  protected static final Logger LOG = LoggerFactory.getLogger(KustoWriteOptions.class);
   private final String database;
   private final String table;
-
   private final String ingestionMappingRef;
-
   private final boolean flushImmediately;
   private final long batchIntervalMs;
   private final long batchSize;
 
+  private final List<String> ingestByTags;
+  private final List<String> additionalTags;
+
   private KustoWriteOptions(String database, String table, String ingestionMappingRef,
-      boolean flushImmediately, long batchIntervalMs, long batchSize) {
+      boolean flushImmediately, long batchIntervalMs, long batchSize, List<String> ingestByTags,
+      List<String> additionalTags) {
     this.database = checkNotNull(database);
     this.table = checkNotNull(table);
     this.ingestionMappingRef = ingestionMappingRef;
     this.flushImmediately = flushImmediately;
+    if (flushImmediately) {
+      LOG.warn("FlushImmediately is set to true, this may cause performance issues");
+    }
     this.batchIntervalMs = batchIntervalMs;
     this.batchSize = batchSize;
+    this.ingestByTags = ingestByTags;
+    this.additionalTags = additionalTags;
+  }
+
+  public List<String> getIngestByTags() {
+    return ingestByTags;
+  }
+
+  public List<String> getAdditionalTags() {
+    return additionalTags;
   }
 
   public String getDatabase() {
@@ -81,8 +105,12 @@ public class KustoWriteOptions {
     private String ingestionMappingRef = null;
 
     private boolean flushImmediately = false;
-    private long batchIntervalMs = 5_000L; // Set up a default batch interval of 5 seconds
+    private long batchIntervalMs = -1L; // Not applicable by default
     private long batchSize = 1000L; // Or 1000 records
+
+    private List<String> ingestByTags = Collections.emptyList();
+
+    private List<String> additionalTags = Collections.emptyList();
 
     private Builder() {}
 
@@ -132,25 +160,63 @@ public class KustoWriteOptions {
     }
 
     /**
-     * Sets the batch interval ms to flush , defaults to 5 seconds
+     * Sets the number of records to sink in a single batch
      *
-     * @param batchSize
-     * @return
+     * @param batchSize the batch size of records to sink in a single batch
+     * @return this builder
      */
     public KustoWriteOptions.Builder withBatchSize(long batchSize) {
       this.batchSize = batchSize;
       return this;
     }
 
+    /**
+     * Sets the batch interval in milliseconds
+     *
+     * @param batchIntervalMs the batch interval in milliseconds
+     * @return this builder
+     */
+
     public KustoWriteOptions.Builder withBatchIntervalMs(long batchIntervalMs) {
       this.batchIntervalMs = batchIntervalMs;
       return this;
     }
 
+    /**
+     * Sets the ingest by tags
+     *
+     * @param ingestByTags the ingest by tags
+     * @return this builder
+     */
+    public KustoWriteOptions.Builder withIngestByTags(List<String> ingestByTags) {
+      this.ingestByTags = ingestByTags;
+      return this;
+    }
 
+    /**
+     * Sets the additional tags
+     *
+     * @param additionalTags the additional tags
+     * @return this builder
+     */
+
+    public KustoWriteOptions.Builder withAdditionalTags(List<String> additionalTags) {
+      this.additionalTags = additionalTags;
+      return this;
+    }
+
+    /**
+     * Builds a {@link KustoWriteOptions} instance.
+     *
+     * @return a {@link KustoWriteOptions} instance
+     */
     public KustoWriteOptions build() {
+      if (batchIntervalMs > 0 || batchSize > 0) {
+        LOG.warn(
+            "BatchInterval and BatchSize are applicable options only for SinkWriter and not applicable for GenericWriteAheadSink");
+      }
       return new KustoWriteOptions(database, table, ingestionMappingRef, flushImmediately,
-          batchIntervalMs, batchSize);
+          batchIntervalMs, batchSize, ingestByTags, additionalTags);
     }
   }
 }
