@@ -1,7 +1,6 @@
 package com.microsoft.azure.flink.flink.it;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import com.microsoft.azure.flink.common.KustoRetryConfig;
@@ -12,7 +11,6 @@ import static com.microsoft.azure.flink.flink.ITSetup.getConnectorProperties;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@Disabled
 public class ContainerProviderIT {
   private static ContainerProvider containerProvider;
 
