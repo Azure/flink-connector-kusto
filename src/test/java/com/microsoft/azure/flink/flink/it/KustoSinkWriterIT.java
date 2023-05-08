@@ -113,14 +113,12 @@ public class KustoSinkWriterIT {
         KustoSinkWriter<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> kustoSinkWriter =
             new KustoSinkWriter<>(coordinates, writeOptions, serializer, true, sinkInitContext)) {
       int maxRecords = 100;
-      kustoSinkWriter.open();
       Map<String, String> expectedResults = new HashMap<>();
       for (int x = 0; x < maxRecords; x++) {
         TupleTestObject tupleTestObject = new TupleTestObject(x, typeKey);
         kustoSinkWriter.write(tupleTestObject.toTuple(), null);
         expectedResults.put(tupleTestObject.getVstr(), tupleTestObject.toJsonString());
       }
-      kustoSinkWriter.close();
       LOG.error("Finished writing records to sink, performing assertions");
       performTest(expectedResults, maxRecords, typeKey);
     }

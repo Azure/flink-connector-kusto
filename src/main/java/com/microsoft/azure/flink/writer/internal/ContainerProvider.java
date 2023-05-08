@@ -31,30 +31,19 @@ import static com.microsoft.azure.flink.common.KustoRetryUtil.getRetries;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class ContainerProvider implements Serializable {
-
   private static final Logger LOG = LoggerFactory.getLogger(ContainerProvider.class);
   private static final long serialVersionUID = 1L;
-
   private final Random randomGenerator;
-
   private static final String GET_TEMP_STORAGE_CONTAINER = ".create tempstorage";
-
   private static final List<ContainerSas> CONTAINER_SAS =
       Collections.synchronizedList(new ArrayList<>());
-
   private long expirationTimestamp;
-
   private final KustoConnectionOptions connectionOptions;
   private final KustoRetryConfig kustoRetryConfig;
-
-
+  private static ContainerProvider containerProviderInstance;
   private transient final Retry retry;
 
-  public ContainerProvider(KustoConnectionOptions connectionOptions) {
-    this(connectionOptions, new KustoRetryConfig.Builder().build());
-  }
-
-  public ContainerProvider(KustoConnectionOptions connectionOptions,
+  private ContainerProvider(KustoConnectionOptions connectionOptions,
       KustoRetryConfig kustoRetryConfig) {
     this.connectionOptions = connectionOptions;
     this.randomGenerator = new Random();
@@ -62,6 +51,17 @@ public class ContainerProvider implements Serializable {
     retry = getRetries(kustoRetryConfig);
   }
 
+  private static synchronized ContainerProvider build(ContainerProvider.Builder builder) {
+    if (containerProviderInstance == null) {
+      containerProviderInstance =
+          new ContainerProvider(builder.connectionOptions, builder.kustoRetryConfig);
+    }
+    return containerProviderInstance;
+  }
+
+  public ContainerProvider getInstance() {
+    return containerProviderInstance;
+  }
 
   public ContainerSas getBlobContainer() {
     // Not expired and a double check the list is not empty
@@ -117,5 +117,24 @@ public class ContainerProvider implements Serializable {
 
   public long getExpirationTimestamp() {
     return expirationTimestamp;
+  }
+
+
+  public static class Builder {
+    private final KustoConnectionOptions connectionOptions;
+    private KustoRetryConfig kustoRetryConfig = new KustoRetryConfig.Builder().build();
+
+    public Builder(KustoConnectionOptions connectionOptions) {
+      this.connectionOptions = connectionOptions;
+    }
+
+    public Builder withKustoRetryConfig(KustoRetryConfig kustoRetryConfig) {
+      this.kustoRetryConfig = kustoRetryConfig;
+      return this;
+    }
+
+    public ContainerProvider build() {
+      return ContainerProvider.build(this);
+    }
   }
 }

@@ -20,6 +20,8 @@ import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
@@ -54,6 +56,8 @@ import scala.Product;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+@PublicEvolving
+@Internal
 public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
   private final KustoConnectionOptions connectionOptions;
   private final KustoWriteOptions writeOptions;
@@ -140,7 +144,8 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
     UUID sourceId = UUID.randomUUID();
     String blobName = String.format("%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
         this.writeOptions.getTable(), sourceId);
-    ContainerProvider containerProvider = new ContainerProvider(this.connectionOptions);
+    ContainerProvider containerProvider =
+        new ContainerProvider.Builder(this.connectionOptions).build();
     ContainerSas uploadContainerSas = containerProvider.getBlobContainer();
     String sasConnectionString = uploadContainerSas.toString();
     BlobContainerClient blobContainerClient =

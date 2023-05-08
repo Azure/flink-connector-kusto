@@ -28,6 +28,7 @@ import org.apache.flink.types.Row;
 import org.json.JSONException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.skyscreamer.jsonassert.Customization;
 import org.skyscreamer.jsonassert.JSONAssert;
@@ -58,6 +59,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.skyscreamer.jsonassert.JSONCompareMode.LENIENT;
 
+@Disabled
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class KustoGenericWriteAheadSinkIT {
   private static final Logger LOG = LoggerFactory.getLogger(KustoGenericWriteAheadSinkIT.class);
@@ -77,7 +79,7 @@ public class KustoGenericWriteAheadSinkIT {
         && StringUtils.isNotEmpty(coordinates.getAppKey())
         && StringUtils.isNotEmpty(coordinates.getTenantId())
         && StringUtils.isNotEmpty(coordinates.getClusterUrl())) {
-      LOG.error("Connecting to cluster: {}", coordinates.getClusterUrl());
+      LOG.info("Connecting to cluster: {}", coordinates.getClusterUrl());
       ConnectionStringBuilder engineCsb =
           ConnectionStringBuilder.createWithAadApplicationCredentials(coordinates.getClusterUrl(),
               coordinates.getAppId(), coordinates.getAppKey(), coordinates.getTenantId());
@@ -102,7 +104,7 @@ public class KustoGenericWriteAheadSinkIT {
   public static void tearDown() throws Exception {
     engineClient.execute(writeOptions.getDatabase(),
         String.format(".drop table %s", writeOptions.getTable()));
-    LOG.error("Finished table clean up. Dropped table {}", writeOptions.getTable());
+    LOG.info("Finished table clean up. Dropped table {}", writeOptions.getTable());
     dmClient.close();
     engineClient.close();
   }

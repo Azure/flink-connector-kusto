@@ -22,6 +22,8 @@ import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -63,19 +65,19 @@ import scala.Product;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+@Internal
 public class KustoSinkWriter<IN> implements SinkWriter<IN> {
-  protected static final Logger LOG = LoggerFactory.getLogger(KustoSinkWriter.class);
+
+  private static final Logger LOG = LoggerFactory.getLogger(KustoSinkWriter.class);
+
   private final KustoConnectionOptions connectionOptions;
   private final KustoWriteOptions writeOptions;
-  private final boolean flushOnCheckpoint;
-  private boolean checkpointInProgress = false;
   private final MailboxExecutor mailboxExecutor;
-  private IngestClient ingestClient;
-  private volatile long ackTime = Long.MAX_VALUE;
-  private volatile long lastSendTime = 0L;
-  private final Counter numRecordsOut;
+  private final boolean flushOnCheckpoint;
   private final List<IN> bulkRequests = new ArrayList<>();
   private final Collector<IN> collector;
+  private final Counter numRecordsOut;
+  private final IngestClient ingestClient;
 
 
   private final transient Supplier<Integer> aritySupplier;
@@ -88,20 +90,26 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
   private final transient Counter ingestFailedCounter;
   private final transient Counter ingestPartiallyFailedCounter;
 
+  private boolean checkpointInProgress = false;
+  private volatile long lastSendTime = 0L;
+  private volatile long ackTime = Long.MAX_VALUE;
+
   public KustoSinkWriter(KustoConnectionOptions connectionOptions, KustoWriteOptions writeOptions,
       @NotNull TypeSerializer<IN> serializer, boolean flushOnCheckpoint,
-      Sink.InitContext initContext) throws Exception {
-    this.connectionOptions = connectionOptions;
-    this.writeOptions = writeOptions;
-    // Use a CaseClass or Tuple or Row to ingest data
-    Class<?> clazzType = serializer.createInstance().getClass();
+      Sink.InitContext initContext) throws URISyntaxException {
+    this.connectionOptions = checkNotNull(connectionOptions);
+    this.writeOptions = checkNotNull(writeOptions);
     this.flushOnCheckpoint = flushOnCheckpoint;
+
     checkNotNull(initContext);
     this.mailboxExecutor = checkNotNull(initContext.getMailboxExecutor());
+
     SinkWriterMetricGroup metricGroup = checkNotNull(initContext.metricGroup());
     metricGroup.setCurrentSendTimeGauge(() -> ackTime - lastSendTime);
+
     this.numRecordsOut = metricGroup.getNumRecordsSendCounter();
     this.collector = new ListCollector<>(this.bulkRequests);
+    Class<?> clazzType = serializer.createInstance().getClass();
     if (Tuple.class.isAssignableFrom(clazzType)) {
       this.aritySupplier = () -> (((TupleSerializer<?>) serializer)).getArity();
       this.extractFieldValueFunction = (value, index) -> {
@@ -123,27 +131,58 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
     } else {
       throw new IllegalArgumentException("Unsupported type: " + clazzType);
     }
-    this.open();
+    this.ingestClient = KustoClientUtil.createIngestClient(checkNotNull(this.connectionOptions,
+        "Connection options passed to ingest client cannot be null."));
     this.recordsSent = metricGroup.counter("recordsSent");
     this.ingestSucceededCounter = metricGroup.counter("succeededIngestions");
     this.ingestFailedCounter = metricGroup.counter("failedIngestions");
     this.ingestPartiallyFailedCounter = metricGroup.counter("partialSucceededIngestions");
   }
 
-  public void open() throws Exception {
-    this.ingestClient = KustoClientUtil.createIngestClient(checkNotNull(this.connectionOptions,
-        "Connection options passed to ingest client cannot be null."));
+  @Override
+  public void write(IN element, Context context) throws IOException, InterruptedException {
+    // do not allow new bulk writes until all actions are flushed
+    while (checkpointInProgress) {
+      mailboxExecutor.yield();
+    }
+    numRecordsOut.inc();
+    collector.collect(element);
+    if (isOverMaxBatchSizeLimit() || isOverMaxBatchIntervalLimit()) {
+      doBulkWrite();
+    }
   }
 
-  protected void bulkWrite() {
-    // Get the blob
-    // Write to the blob
-    // have the ingest client send out request for ingestion
-    // wait for result of the ingest and return true/false
+  @Override
+  public void flush(boolean endOfInput) throws IOException {
+    checkpointInProgress = true;
+    while (!bulkRequests.isEmpty() && (flushOnCheckpoint || endOfInput)) {
+      doBulkWrite();
+    }
+    checkpointInProgress = false;
+  }
+
+  @Override
+  public void close() {
+    try {
+      if (ingestClient != null) {
+        ingestClient.close();
+      }
+    } catch (Exception e) {
+      LOG.error("Error while closing session.", e);
+    }
+  }
+
+  @VisibleForTesting
+  void doBulkWrite() throws IOException {
+    if (bulkRequests.isEmpty()) {
+      // no records to write
+      return;
+    }
     UUID sourceId = UUID.randomUUID();
     String blobName = String.format("%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
         this.writeOptions.getTable(), sourceId);
-    ContainerProvider containerProvider = new ContainerProvider(this.connectionOptions);
+    ContainerProvider containerProvider =
+        new ContainerProvider.Builder(this.connectionOptions).build();
     ContainerSas uploadContainerSas = containerProvider.getBlobContainer();
     String sasConnectionString = uploadContainerSas.toString();
     BlobContainerClient blobContainerClient =
@@ -154,19 +193,22 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
         BlobOutputStream blobOutputStream =
             uploadClient.getBlockBlobClient().getBlobOutputStream(true);
         GZIPOutputStream gzip = new GZIPOutputStream(blobOutputStream)) {
+      this.lastSendTime = Instant.now(Clock.systemUTC()).toEpochMilli();
       for (IN value : this.bulkRequests) {
-        for (int i = 0; i < aritySupplier.get(); i++) {
-          Object fieldValue = extractFieldValueFunction.apply(value, i);
+        for (int i = 0; i < this.aritySupplier.get(); i++) {
+          Object fieldValue = this.extractFieldValueFunction.apply(value, i);
           if (fieldValue != null) {
             gzip.write(StringEscapeUtils.escapeCsv(fieldValue.toString()).getBytes());
           }
-          if (i < aritySupplier.get() - 1) {
+          if (i < this.aritySupplier.get() - 1) {
             gzip.write(",".getBytes());
           }
         }
         gzip.write(System.lineSeparator().getBytes());
         this.recordsSent.inc();
       }
+      this.ackTime = System.currentTimeMillis();
+      LOG.info("Records sent in blob {} with record count {}", blobName, this.bulkRequests.size());
       this.bulkRequests.clear();
     } catch (IOException e) {
       LOG.error("Error (IOException) while writing to blob.", e);
@@ -215,7 +257,6 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
               IngestionMapping.IngestionMappingKind.CSV);
         }
         ingestionProperties.setFlushImmediately(this.writeOptions.getFlushImmediately());
-        this.lastSendTime = Instant.now(Clock.systemUTC()).toEpochMilli();
         return this.ingestClient.ingestFromBlob(blobSourceInfo, ingestionProperties);
       } catch (IngestionClientException | IngestionServiceException e) {
         String errorMessage = String
@@ -226,8 +267,8 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
     };
   }
 
-  private CompletableFuture<String> pollForCompletion(final String blobName, final String sourceId,
-      IngestionResult ingestionResult) {
+  private @NotNull CompletableFuture<String> pollForCompletion(final String blobName,
+      final String sourceId, IngestionResult ingestionResult) {
     CompletableFuture<String> completionFuture = new CompletableFuture<>();
     long timeToEndPoll = Instant.now(Clock.systemUTC()).plus(5, ChronoUnit.MINUTES).toEpochMilli(); // TODO:
     // make
@@ -242,7 +283,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
             "Polling for ingestion of source id: " + sourceId + " timed out."));
       }
       try {
-        LOG.error("Ingestion Status {}",
+        LOG.debug("Ingestion Status {}",
             ingestionResult.getIngestionStatusCollection().stream()
                 .map(is -> is.getIngestionSourceId() + "::" + is.getStatus())
                 .collect(Collectors.joining(",")));
@@ -279,55 +320,30 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
       }
     }, 1, 5, TimeUnit.SECONDS); // TODO pick up from write options. Also CRP needs to be picked up
     completionFuture.whenComplete((result, thrown) -> checkFuture.cancel(true));
-    this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
     return completionFuture;
   }
 
-  @Override
-  public void close() {
-    try {
-      if (ingestClient != null) {
-        ingestClient.close();
-      }
-    } catch (Exception e) {
-      LOG.error("Error while closing session.", e);
-    }
-  }
-
-  @Override
-  public void write(IN in, Context context) throws IOException, InterruptedException {
-    // do not allow new bulk writes until all actions are flushed
-    while (this.checkpointInProgress) {
-      this.mailboxExecutor.yield();
-    }
-    this.numRecordsOut.inc();
-    this.collector.collect(in);
-    if (isOverMaxBatchSizeLimit() || isOverMaxBatchIntervalLimit()) {
-      LOG.error("Bulk write limit reached. Performing bulk write. Record count {}",
-          this.bulkRequests.size());
-      bulkWrite();
-    }
-  }
-
-  @Override
-  public void flush(boolean endOfInput) throws IOException, InterruptedException {
-    this.checkpointInProgress = true;
-    while (!bulkRequests.isEmpty() && (this.flushOnCheckpoint || endOfInput)) {
-      LOG.error("Bulk write time limit reached or batch size, flushing records. Record count {}",
-          this.bulkRequests.size());
-      bulkWrite();
-    }
-    this.checkpointInProgress = false;
-  }
-
   private boolean isOverMaxBatchSizeLimit() {
-    long bulkActions = this.writeOptions.getBatchSize();
-    return bulkActions != -1 && this.bulkRequests.size() >= bulkActions;
+    long bulkActions = writeOptions.getBatchSize();
+    boolean isOverMaxBatchSizeLimit = bulkActions != -1 && this.bulkRequests.size() >= bulkActions;
+    if (isOverMaxBatchSizeLimit) {
+      LOG.info("OverMaxBatchSizeLimit triggered at time {} with batch size {}.", Instant.now(),
+          this.bulkRequests.size());
+    }
+    return isOverMaxBatchSizeLimit;
   }
 
   private boolean isOverMaxBatchIntervalLimit() {
-    long bulkFlushInterval = this.writeOptions.getBatchIntervalMs();
-    long lastSentInterval = Instant.now(Clock.systemUTC()).toEpochMilli() - this.lastSendTime;
-    return bulkFlushInterval != -1 && lastSentInterval >= bulkFlushInterval;
+    long bulkFlushInterval = writeOptions.getBatchIntervalMs();
+    long lastSentInterval = System.currentTimeMillis() - lastSendTime;
+    boolean isOverIntervalLimit =
+        lastSendTime > 0 && bulkFlushInterval != -1 && lastSentInterval >= bulkFlushInterval;
+    if (isOverIntervalLimit) {
+      LOG.info(
+          "OverMaxBatchIntervalLimit triggered last sent interval data at {} against lastSentTime {}."
+              + "The last sent interval is {}",
+          Instant.now(), this.lastSendTime, lastSentInterval);
+    }
+    return isOverIntervalLimit;
   }
 }
