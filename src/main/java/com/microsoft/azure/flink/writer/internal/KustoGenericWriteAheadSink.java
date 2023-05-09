@@ -22,8 +22,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer;
@@ -37,12 +39,14 @@ import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobContainerClientBuilder;
 import com.azure.storage.blob.specialized.BlobOutputStream;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.microsoft.azure.flink.common.KustoClientUtil;
 import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.common.KustoRetryUtil;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 import com.microsoft.azure.flink.writer.internal.container.ContainerSas;
+import com.microsoft.azure.kusto.ingest.ColumnMapping;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
@@ -61,12 +65,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
   private final KustoConnectionOptions connectionOptions;
   private final KustoWriteOptions writeOptions;
-
   private IngestClient ingestClient;
-
   private final ScheduledExecutorService pollResultsExecutor =
       Executors.newSingleThreadScheduledExecutor();
 
+  private IngestionMapping ingestionMapping;
   // Bunch of metrics to send the data to monitor
   private transient Counter recordsSent;
   private transient Counter ingestSucceededCounter;
@@ -88,7 +91,7 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
    */
   public KustoGenericWriteAheadSink(KustoConnectionOptions connectionOptions,
       KustoWriteOptions writeOptions, CheckpointCommitter committer, TypeSerializer<IN> serializer,
-      String jobID) throws Exception {
+      TypeInformation<IN> typeInformation, String jobID) throws Exception {
     super(committer, serializer, jobID);
     this.connectionOptions = connectionOptions;
     this.writeOptions = writeOptions;
@@ -112,9 +115,29 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
         Product product = (Product) value;
         return product.productElement(index);
       };
+    } else if (typeInformation instanceof PojoTypeInfo) {
+      this.aritySupplier = typeInformation::getArity;
+      this.extractFieldValueFunction = (value, index) -> {
+        try {
+          return ((PojoTypeInfo<IN>) typeInformation).getPojoFieldAt(index).getField().get(value);
+        } catch (IllegalAccessException e) {
+          throw new RuntimeException(e);
+        }
+      };
+      this.ingestionMapping =
+          getIngestionMapping(((PojoTypeInfo<IN>) typeInformation).getFieldNames());
     } else {
       throw new IllegalArgumentException("Unsupported type: " + clazzType);
     }
+  }
+
+  public IngestionMapping getIngestionMapping(String[] pojoFields) throws JsonProcessingException {
+    ColumnMapping[] columnMappings = new ColumnMapping[pojoFields.length];
+    for (int fieldCount = 0; fieldCount < pojoFields.length; fieldCount++) {
+      columnMappings[fieldCount] = new ColumnMapping(pojoFields[fieldCount], null);
+      columnMappings[fieldCount].setOrdinal(fieldCount);
+    }
+    return new IngestionMapping(columnMappings, IngestionMapping.IngestionMappingKind.CSV);
   }
 
   @Override
@@ -125,7 +148,6 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
     }
     this.ingestClient = KustoClientUtil.createIngestClient(checkNotNull(this.connectionOptions,
         "Connection options passed to ingest client cannot be null."));
-
     this.recordsSent = super.getRuntimeContext().getMetricGroup().counter("recordsSent");
     this.ingestSucceededCounter =
         super.getRuntimeContext().getMetricGroup().counter("succeededIngestions");
@@ -215,6 +237,10 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
         if (StringUtils.isNotEmpty(this.writeOptions.getIngestionMappingRef())) {
           ingestionProperties.setIngestionMapping(this.writeOptions.getIngestionMappingRef(),
               IngestionMapping.IngestionMappingKind.CSV);
+        }
+        // For the POJO mapping
+        if (this.ingestionMapping != null) {
+          ingestionProperties.setIngestionMapping(this.ingestionMapping);
         }
         ingestionProperties.setFlushImmediately(this.writeOptions.getFlushImmediately());
         return this.ingestClient.ingestFromBlob(blobSourceInfo, ingestionProperties);

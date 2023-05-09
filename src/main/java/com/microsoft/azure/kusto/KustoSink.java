@@ -269,7 +269,7 @@ public class KustoSink<IN> {
       new KustoSink<>(input.transform("Kusto Row Sink", null,
           new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
               new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
-              UUID.randomUUID().toString())));
+              this.typeInfo, UUID.randomUUID().toString())));
       return null;
     }
   }
@@ -284,7 +284,7 @@ public class KustoSink<IN> {
       new KustoSink<>(input.transform("Kusto Tuple Sink", null,
           new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
               new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
-              UUID.randomUUID().toString())));
+              this.typeInfo, UUID.randomUUID().toString())));
       return null;
     }
   }
@@ -299,7 +299,7 @@ public class KustoSink<IN> {
       new KustoSink<>(input.transform("Kusto Product Sink", null,
           new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
               new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
-              UUID.randomUUID().toString())));
+              this.typeInfo, UUID.randomUUID().toString())));
       return null;
     }
   }

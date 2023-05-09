@@ -14,6 +14,39 @@ public class TupleTestObject {
   private double vdec;
   private String vdate;
   private boolean vb;
+
+  public void setVnum(int vnum) {
+    this.vnum = vnum;
+  }
+
+  public void setVdec(double vdec) {
+    this.vdec = vdec;
+  }
+
+  public void setVdate(String vdate) {
+    this.vdate = vdate;
+  }
+
+  public void setVb(boolean vb) {
+    this.vb = vb;
+  }
+
+  public void setVreal(double vreal) {
+    this.vreal = vreal;
+  }
+
+  public void setVstr(String vstr) {
+    this.vstr = vstr;
+  }
+
+  public void setVlong(long vlong) {
+    this.vlong = vlong;
+  }
+
+  public void setType(String type) {
+    this.type = type;
+  }
+
   private double vreal;
   private String vstr;
   private long vlong;
@@ -66,6 +99,8 @@ public class TupleTestObject {
     this.vlong = rand.nextLong();
     this.type = typeKey;
   }
+
+  public TupleTestObject() {}
 
   public String toJsonString() throws Exception {
     return MAPPER.writeValueAsString(this);

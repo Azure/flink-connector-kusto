@@ -25,7 +25,7 @@ public class ITSetup {
         String.format("tmpFlinkSinkIT_%s", UUID.randomUUID().toString().replace('-', '_'));
     String table = getProperty("table", defaultTable, true);
     return KustoWriteOptions.builder().withDatabase(database).withTable(table)
-        .withBatchIntervalMs(45_000).withBatchSize(100).build(); // TODO check the -1 batch interval
+        .withBatchIntervalMs(10_000).withBatchSize(100).build(); // TODO check the -1 batch interval
     // value
   }
 

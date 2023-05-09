@@ -112,7 +112,7 @@ public class KustoSinkWriterIT {
     try (
         KustoSinkWriter<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> kustoSinkWriter =
             new KustoSinkWriter<>(coordinates, writeOptions, serializer, true, sinkInitContext)) {
-      int maxRecords = 100;
+      int maxRecords = 147; // A random number for testing both time and record count based flush
       Map<String, String> expectedResults = new HashMap<>();
       for (int x = 0; x < maxRecords; x++) {
         TupleTestObject tupleTestObject = new TupleTestObject(x, typeKey);
