@@ -9,10 +9,20 @@ public class ContainerSas {
     this.sasToken = sasToken;
   }
 
+  /**
+   * Get the container url.
+   *
+   * @return container url
+   */
   public String getContainerUrl() {
     return containerUrl;
   }
 
+  /**
+   * Get the sas token.
+   *
+   * @return sas token
+   */
   public String getSasToken() {
     return sasToken;
   }

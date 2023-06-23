@@ -1,4 +1,4 @@
-package com.microsoft.azure.flink.writer.internal;
+package com.microsoft.azure.flink.writer.internal.sink;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -21,7 +21,6 @@ import java.util.zip.GZIPOutputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -30,21 +29,23 @@ import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer;
 import org.apache.flink.metrics.Counter;
-import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
-import org.apache.flink.streaming.runtime.operators.GenericWriteAheadSink;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.types.Row;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobContainerClientBuilder;
 import com.azure.storage.blob.specialized.BlobOutputStream;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.microsoft.azure.flink.common.KustoClientUtil;
 import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.common.KustoRetryUtil;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
+import com.microsoft.azure.flink.writer.internal.ContainerProvider;
 import com.microsoft.azure.flink.writer.internal.container.ContainerSas;
 import com.microsoft.azure.kusto.ingest.ColumnMapping;
 import com.microsoft.azure.kusto.ingest.IngestClient;
@@ -60,41 +61,41 @@ import scala.Product;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-@PublicEvolving
 @Internal
-public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
-  private final KustoConnectionOptions connectionOptions;
+public class KustoSinkCommon<IN> {
   private final KustoWriteOptions writeOptions;
-  private IngestClient ingestClient;
+  protected static final Logger LOG = LoggerFactory.getLogger(KustoSinkCommon.class);
+  private final transient Counter ingestSucceededCounter;
+  private final transient Counter ingestFailedCounter;
+  private final transient Counter ingestPartiallyFailedCounter;
+  private final transient Counter recordsSent;
   private final ScheduledExecutorService pollResultsExecutor =
       Executors.newSingleThreadScheduledExecutor();
+  private final IngestClient ingestClient;
 
-  private IngestionMapping ingestionMapping;
-  // Bunch of metrics to send the data to monitor
-  private transient Counter recordsSent;
-  private transient Counter ingestSucceededCounter;
-  private transient Counter ingestFailedCounter;
-  private transient Counter ingestPartiallyFailedCounter;
+  private final KustoConnectionOptions connectionOptions;
 
-  private final transient Supplier<Integer> aritySupplier;
-  private final transient BiFunction<IN, Integer, Object> extractFieldValueFunction;
+  protected final transient Supplier<Integer> aritySupplier;
+  protected final transient BiFunction<IN, Integer, Object> extractFieldValueFunction;
+  protected IngestionMapping ingestionMapping;
 
-  /**
-   * Constructor for KustoGenericWriteAheadSink.
-   *
-   * @param connectionOptions The connection options for the Kusto cluster.
-   * @param writeOptions The write options for the Kusto cluster.
-   * @param committer The committer for the checkpoint.
-   * @param serializer The serializer for the data.
-   * @param jobID The job ID.
-   * @throws Exception If the connection options are invalid.
-   */
-  public KustoGenericWriteAheadSink(KustoConnectionOptions connectionOptions,
-      KustoWriteOptions writeOptions, CheckpointCommitter committer, TypeSerializer<IN> serializer,
-      TypeInformation<IN> typeInformation, String jobID) throws Exception {
-    super(committer, serializer, jobID);
+  protected volatile long lastSendTime = 0L;
+  protected volatile long ackTime = Long.MAX_VALUE;
+
+
+  protected KustoSinkCommon(KustoConnectionOptions connectionOptions,
+      KustoWriteOptions writeOptions, MetricGroup metricGroup, TypeSerializer<IN> serializer,
+      TypeInformation<IN> typeInformation) throws URISyntaxException {
     this.connectionOptions = connectionOptions;
     this.writeOptions = writeOptions;
+    this.ingestClient = KustoClientUtil.createIngestClient(checkNotNull(connectionOptions,
+        "Connection options passed to ingest client cannot be null."));
+    this.ingestSucceededCounter = metricGroup.counter("succeededIngestions");
+    this.ingestFailedCounter = metricGroup.counter("failedIngestions");
+    this.ingestPartiallyFailedCounter = metricGroup.counter("partialSucceededIngestions");
+    this.recordsSent = metricGroup.counter("recordsSent");
+
+
     Class<?> clazzType = serializer.createInstance().getClass();
     LOG.info("Using WriteAheadSink class type: {}", clazzType);
     if (Tuple.class.isAssignableFrom(clazzType)) {
@@ -131,7 +132,14 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
     }
   }
 
-  public IngestionMapping getIngestionMapping(String[] pojoFields) throws JsonProcessingException {
+  /**
+   * Given a set of fields, returns the ingestion mapping.
+   *
+   * @param pojoFields The fields in the pojo
+   * @return The ingestion mapping
+   */
+  @Contract("_ -> new")
+  private @NotNull IngestionMapping getIngestionMapping(String @NotNull [] pojoFields) {
     ColumnMapping[] columnMappings = new ColumnMapping[pojoFields.length];
     for (int fieldCount = 0; fieldCount < pojoFields.length; fieldCount++) {
       columnMappings[fieldCount] = new ColumnMapping(pojoFields[fieldCount], null);
@@ -140,80 +148,10 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
     return new IngestionMapping(columnMappings, IngestionMapping.IngestionMappingKind.CSV);
   }
 
-  @Override
-  public void open() throws Exception {
-    super.open();
-    if (!getRuntimeContext().isCheckpointingEnabled()) {
-      throw new IllegalStateException("The write-ahead log requires checkpointing to be enabled.");
-    }
-    this.ingestClient = KustoClientUtil.createIngestClient(checkNotNull(this.connectionOptions,
-        "Connection options passed to ingest client cannot be null."));
-    this.recordsSent = super.getRuntimeContext().getMetricGroup().counter("recordsSent");
-    this.ingestSucceededCounter =
-        super.getRuntimeContext().getMetricGroup().counter("succeededIngestions");
-    this.ingestFailedCounter =
-        super.getRuntimeContext().getMetricGroup().counter("failedIngestions");
-    this.ingestPartiallyFailedCounter =
-        super.getRuntimeContext().getMetricGroup().counter("partialSucceededIngestions");
-  }
-
-  @Override
-  protected boolean sendValues(@NotNull Iterable<IN> values, long checkpointId, long timestamp) {
-    // Get the blob
-    // Write to the blob
-    // have the ingest client send out request for ingestion
-    // wait for result of the ingest and return true/false
-    UUID sourceId = UUID.randomUUID();
-    String blobName = String.format("%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
-        this.writeOptions.getTable(), sourceId);
-    ContainerProvider containerProvider =
-        new ContainerProvider.Builder(this.connectionOptions).build();
-    ContainerSas uploadContainerSas = containerProvider.getBlobContainer();
-    String sasConnectionString = uploadContainerSas.toString();
-    BlobContainerClient blobContainerClient =
-        new BlobContainerClientBuilder().endpoint(sasConnectionString).buildClient();
-    boolean isUploadSuccessful = true;
-    BlobClient uploadClient = blobContainerClient.getBlobClient(blobName);
-    try (
-        BlobOutputStream blobOutputStream =
-            uploadClient.getBlockBlobClient().getBlobOutputStream(true);
-        GZIPOutputStream gzip = new GZIPOutputStream(blobOutputStream)) {
-      for (IN value : values) {
-        for (int i = 0; i < aritySupplier.get(); i++) {
-          Object fieldValue = extractFieldValueFunction.apply(value, i);
-          if (fieldValue != null) {
-            gzip.write(StringEscapeUtils.escapeCsv(fieldValue.toString()).getBytes());
-          }
-          if (i < aritySupplier.get() - 1) {
-            gzip.write(",".getBytes());
-          }
-        }
-        gzip.write(System.lineSeparator().getBytes());
-        this.recordsSent.inc();
-      }
-    } catch (IOException e) {
-      LOG.error("Error (IOException) while writing to blob.", e);
-      isUploadSuccessful = false;
-    }
-    if (isUploadSuccessful) {
-      LOG.debug("Upload to blob successful , blob file {}.Performing ingestion", blobName);
-      IngestionResult ingestionResult =
-          KustoRetryUtil.getRetries(KustoRetryConfig.builder().build())
-              .executeSupplier(performIngestSupplier(uploadContainerSas, blobName, sourceId));
-      try {
-        final String pollResult =
-            pollForCompletion(blobName, sourceId.toString(), ingestionResult).get();
-        return OperationStatus.Succeeded.name().equals(pollResult);
-      } catch (InterruptedException | ExecutionException e) {
-        LOG.error("Error while polling for completion of ingestion.", e);
-        throw new RuntimeException(e);
-      }
-    }
-    return false;
-  }
-
-  private Supplier<IngestionResult> performIngestSupplier(@NotNull ContainerSas container,
-      @NotNull String blobName, UUID sourceId) {
+  @Contract(pure = true)
+  @NotNull
+  protected Supplier<IngestionResult> performIngestSupplier(@NotNull ContainerSas container,
+      IngestionMapping ingestionMapping, @NotNull String blobName, UUID sourceId) {
     return () -> {
       try {
         String blobUri = String.format("%s/%s?%s", container.getContainerUrl(), blobName,
@@ -239,10 +177,13 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
               IngestionMapping.IngestionMappingKind.CSV);
         }
         // For the POJO mapping
-        if (this.ingestionMapping != null) {
-          ingestionProperties.setIngestionMapping(this.ingestionMapping);
+        if (ingestionMapping != null) {
+          ingestionProperties.setIngestionMapping(ingestionMapping);
         }
         ingestionProperties.setFlushImmediately(this.writeOptions.getFlushImmediately());
+        // This is when the last upload and queue request happened
+        this.lastSendTime = Instant.now(Clock.systemUTC()).toEpochMilli();
+        LOG.debug("Setting last send time to {}", this.lastSendTime);
         return this.ingestClient.ingestFromBlob(blobSourceInfo, ingestionProperties);
       } catch (IngestionClientException | IngestionServiceException e) {
         String errorMessage = String
@@ -253,14 +194,85 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
     };
   }
 
+
+  boolean ingest(Iterable<IN> bulkRequests) {
+    // Get the blob
+    // Write to the blob
+    // have the ingest client send out request for ingestion
+    // wait for result of the ingest and return true/false
+    if (bulkRequests == null) {
+      return true;
+    }
+    UUID sourceId = UUID.randomUUID();
+    String blobName = String.format("%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
+        this.writeOptions.getTable(), sourceId);
+    ContainerProvider containerProvider =
+        new ContainerProvider.Builder(this.connectionOptions).build();
+    ContainerSas uploadContainerSas = containerProvider.getBlobContainer();
+    String sasConnectionString = uploadContainerSas.toString();
+    BlobContainerClient blobContainerClient =
+        new BlobContainerClientBuilder().endpoint(sasConnectionString).buildClient();
+    boolean isUploadSuccessful = true;
+    BlobClient uploadClient = blobContainerClient.getBlobClient(blobName);
+    // Is a side effect. Can be a bit more polished but it is easier to send the total metric in one
+    // shot.
+    int recordsInBatch = 0;
+    try (
+        BlobOutputStream blobOutputStream =
+            uploadClient.getBlockBlobClient().getBlobOutputStream(true);
+        GZIPOutputStream gzip = new GZIPOutputStream(blobOutputStream)) {
+      for (IN value : bulkRequests) {
+        int arity = this.aritySupplier.get();
+        for (int i = 0; i < arity; i++) {
+          Object fieldValue = this.extractFieldValueFunction.apply(value, i);
+          if (fieldValue != null) {
+            gzip.write(StringEscapeUtils.escapeCsv(fieldValue.toString()).getBytes());
+          }
+          if (i < arity - 1) {
+            gzip.write(",".getBytes());
+          }
+        }
+        gzip.write(System.lineSeparator().getBytes());
+        recordsInBatch++;
+      }
+      // If there are no records in the batch, we will mark this as done.
+      if (recordsInBatch == 0) {
+        return true;
+      }
+      this.recordsSent.inc(recordsInBatch);
+    } catch (IOException e) {
+      LOG.error("Error (IOException) while writing to blob.", e);
+      isUploadSuccessful = false;
+    }
+    if (isUploadSuccessful) {
+      LOG.debug("Upload to blob successful , blob file {}.Performing ingestion", blobName);
+      IngestionResult ingestionResult =
+          KustoRetryUtil.getRetries(KustoRetryConfig.builder().build())
+              .executeSupplier(this.performIngestSupplier(uploadContainerSas, this.ingestionMapping,
+                  blobName, sourceId));
+      try {
+        final String pollResult =
+            this.pollForCompletion(blobName, sourceId.toString(), ingestionResult).get();
+        this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
+        return OperationStatus.Succeeded.name().equals(pollResult);
+      } catch (InterruptedException | ExecutionException e) {
+        LOG.error("Error while polling for completion of ingestion.", e);
+        throw new RuntimeException(e);
+      }
+    }
+    return false;
+  }
+
+
+
   // https://stackoverflow.com/questions/40251528/how-to-use-executorservice-to-poll-until-a-result-arrives
-  private CompletableFuture<String> pollForCompletion(final String blobName, final String sourceId,
+  protected CompletableFuture<String> pollForCompletion(String blobName, String sourceId,
       IngestionResult ingestionResult) {
     CompletableFuture<String> completionFuture = new CompletableFuture<>();
     long timeToEndPoll = Instant.now(Clock.systemUTC()).plus(5, ChronoUnit.MINUTES).toEpochMilli(); // TODO:
-                                                                                                    // make
-                                                                                                    // this
-                                                                                                    // configurable
+    // make
+    // this
+    // configurable
     final ScheduledFuture<?> checkFuture = pollResultsExecutor.scheduleAtFixedRate(() -> {
       if (Instant.now(Clock.systemUTC()).toEpochMilli() > timeToEndPoll) {
         LOG.warn(
@@ -307,14 +319,12 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
         completionFuture.completeExceptionally(new RuntimeException(errorMessage, e));
       }
     }, 1, 5, TimeUnit.SECONDS); // TODO pick up from write options. Also CRP needs to be picked
-                                // up
+    // up
     completionFuture.whenComplete((result, thrown) -> checkFuture.cancel(true));
     return completionFuture;
   }
 
-  @Override
-  public void close() throws Exception {
-    super.close();
+  protected void close() {
     try {
       if (ingestClient != null) {
         ingestClient.close();
@@ -322,5 +332,7 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
     } catch (Exception e) {
       LOG.error("Error while closing session.", e);
     }
+
   }
+
 }

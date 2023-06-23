@@ -39,8 +39,8 @@ import org.slf4j.LoggerFactory;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 import com.microsoft.azure.flink.flink.TupleTestObject;
-import com.microsoft.azure.flink.writer.internal.KustoGenericWriteAheadSink;
 import com.microsoft.azure.flink.writer.internal.committer.KustoCommitter;
+import com.microsoft.azure.flink.writer.internal.sink.KustoGenericWriteAheadSink;
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.data.ClientFactory;
 import com.microsoft.azure.kusto.data.KustoResultSetTable;
@@ -68,7 +68,6 @@ public class KustoGenericWriteAheadSinkIT {
   private static Client dmClient;
   private static KustoConnectionOptions coordinates;
   private static KustoWriteOptions writeOptions;
-
 
   @BeforeAll
   public static void setUp() {
@@ -113,10 +112,8 @@ public class KustoGenericWriteAheadSinkIT {
   public void testTupleIngest() throws Exception {
     String typeKey = "FlinkTupleTest";
     TypeInformation<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> typeInfo =
-        TypeInformation.of(
-            new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {});
+        TypeInformation.of(new TypeHint<>() {});
     TypeSerializer<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> serializer =
-
         typeInfo.createSerializer(new ExecutionConfig());
     KustoGenericWriteAheadSink<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> kustoGenericWriteAheadSink =
         new KustoGenericWriteAheadSink<>(coordinates, writeOptions,
@@ -130,6 +127,7 @@ public class KustoGenericWriteAheadSinkIT {
     for (int x = 0; x < maxRecords; x++) {
       TupleTestObject tupleTestObject = new TupleTestObject(x, typeKey);
       testHarness.processElement(new StreamRecord(tupleTestObject.toTuple()));
+      LOG.debug("Processed tuple with key {}", tupleTestObject.getVstr());
       expectedResults.put(tupleTestObject.getVstr(), tupleTestObject.toJsonString());
     }
     performTest(testHarness, expectedResults, maxRecords, typeKey);
@@ -139,7 +137,7 @@ public class KustoGenericWriteAheadSinkIT {
   public void testRowIngest() throws Exception {
     String typeKey = "FlinkRowTest";
     ExecutionConfig config = new ExecutionConfig();
-    TypeInformation<Row> rowTypeInformation = TypeInformation.of(new TypeHint<Row>() {});
+    TypeInformation<Row> rowTypeInformation = TypeInformation.of(new TypeHint<>() {});
     TypeSerializer<?>[] fieldSerializers = new TypeSerializer[8];
     TypeInformation<?>[] types = new TypeInformation[8];
     types[0] = TypeInformation.of(new TypeHint<Integer>() {});

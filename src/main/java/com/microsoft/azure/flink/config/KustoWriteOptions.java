@@ -16,11 +16,23 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class KustoWriteOptions {
   protected static final Logger LOG = LoggerFactory.getLogger(KustoWriteOptions.class);
+  /* The database to write the data to */
   private final String database;
+  /* The ingestion happens to this table */
   private final String table;
+  /* The ingestion mapping reference to use */
   private final String ingestionMappingRef;
+  /* If set to true, any aggregation will be skipped. Avoid using this unless really necessary. */
   private final boolean flushImmediately;
+  /*
+   * Applicable in non WAL sink only. In case of simple sink this determines how often records are
+   * collected and pushed for ingestion
+   */
   private final long batchIntervalMs;
+  /*
+   * Applicable in non WAL sink only. In case of simple sink this determines the size of the
+   * collected records & pushed for ingestion
+   */
   private final long batchSize;
 
   private final List<String> ingestByTags;

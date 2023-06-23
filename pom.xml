@@ -40,7 +40,6 @@
 
 
   <dependencies>
-
     <!-- Core -->
     <dependency>
       <groupId>org.apache.flink</groupId>

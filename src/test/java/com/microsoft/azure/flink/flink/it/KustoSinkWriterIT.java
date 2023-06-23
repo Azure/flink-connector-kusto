@@ -33,7 +33,7 @@ import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 import com.microsoft.azure.flink.flink.TestSinkInitContext;
 import com.microsoft.azure.flink.flink.TupleTestObject;
-import com.microsoft.azure.flink.writer.internal.KustoSinkWriter;
+import com.microsoft.azure.flink.writer.internal.sink.KustoSinkWriter;
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.data.ClientFactory;
 import com.microsoft.azure.kusto.data.KustoResultSetTable;
@@ -105,13 +105,14 @@ public class KustoSinkWriterIT {
   @Test
   public void testSinkTupleIngest() throws Exception {
     String typeKey = "FlinkTupleTest-SinkWriter";
+    TypeInformation<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> typeInformation =
+        TypeInformation.of(new TypeHint<>() {});
     TypeSerializer<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> serializer =
-        TypeInformation.of(
-            new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {})
-            .createSerializer(new ExecutionConfig());
+        typeInformation.createSerializer(new ExecutionConfig());
     try (
         KustoSinkWriter<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> kustoSinkWriter =
-            new KustoSinkWriter<>(coordinates, writeOptions, serializer, true, sinkInitContext)) {
+            new KustoSinkWriter<>(coordinates, writeOptions, serializer, typeInformation, true,
+                sinkInitContext)) {
       int maxRecords = 147; // A random number for testing both time and record count based flush
       Map<String, String> expectedResults = new HashMap<>();
       for (int x = 0; x < maxRecords; x++) {
@@ -119,14 +120,16 @@ public class KustoSinkWriterIT {
         kustoSinkWriter.write(tupleTestObject.toTuple(), null);
         expectedResults.put(tupleTestObject.getVstr(), tupleTestObject.toJsonString());
       }
-      LOG.error("Finished writing records to sink, performing assertions");
-      performTest(expectedResults, maxRecords, typeKey);
+      LOG.info("Finished writing records to sink, performing assertions");
+      performTest(kustoSinkWriter,expectedResults, maxRecords, typeKey);
     }
   }
 
-  private void performTest(Map<String, String> expectedResults, int maxRecords, String typeKey) {
+  private void performTest(KustoSinkWriter<?> kustoSinkWriter,Map<String, String> expectedResults, int maxRecords, String typeKey) {
     try {
       // Perform the assertions here
+      LOG.info("Calling flush on checkpoint or end of input so that the writer to flush all pending data for at-least-once");
+      kustoSinkWriter.flush(true);
       Map<String, String> actualRecordsIngested = getActualRecordsIngested(maxRecords, typeKey);
       actualRecordsIngested.keySet().parallelStream().forEach(key -> {
         LOG.debug("Record queried: {} and expected record {} ", actualRecordsIngested.get(key),
@@ -222,4 +225,62 @@ public class KustoSinkWriterIT {
     };
     return retry.executeSupplier(recordSearchSupplier);
   }
+
+
+//  @Test
+//  void testWriteOnBulkFlush() throws Exception {
+//    final String collection = "test-bulk-flush-without-checkpoint";
+//    final boolean flushOnCheckpoint = false;
+//    final int batchSize = 5;
+//    final int batchIntervalMs = -1;
+///*
+//    TypeInformation<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> typeInformation =
+//        TypeInformation.of(new TypeHint<>() {});
+//    TypeSerializer<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> serializer =
+//        typeInformation.createSerializer(new ExecutionConfig());
+// */
+//    try (KustoSinkWriter<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> kustoSinkWriter =
+//                         new KustoSinkWriter<>(coordinates, writeOptions, serializer, typeInformation, true,
+//                                 sinkInitContext)) {
+//      kustoSinkWriter.write(buildMessage(1), null);
+//      kustoSinkWriter.write(buildMessage(2), null);
+//      kustoSinkWriter.write(buildMessage(3), null);
+//      kustoSinkWriter.write(buildMessage(4), null);
+//
+//      // Ignore flush on checkpoint
+//      kustoSinkWriter.flush(false);
+//
+//      assertThatIdsAreNotWritten(collectionOf(collection), 1, 2, 3, 4);
+//
+//      // Trigger flush
+//      kustoSinkWriter.write(buildMessage(5), null);
+//      assertThatIdsAreWritten(collectionOf(collection), 1, 2, 3, 4, 5);
+//
+//      kustoSinkWriter.write(buildMessage(6), null);
+//      assertThatIdsAreNotWritten(collectionOf(collection), 6);
+//
+//      // Force flush
+//      kustoSinkWriter.doBulkWrite();
+//      assertThatIdsAreWritten(collectionOf(collection), 1, 2, 3, 4, 5, 6);
+//    }
+//  }
+//
+//  @Test
+//  void testWriteOnBatchIntervalFlush() throws Exception {
+//    final String collection = "test-bulk-flush-with-interval";
+//    final boolean flushOnCheckpoint = false;
+//    final int batchSize = -1;
+//    final int batchIntervalMs = 1000;
+//
+//    try (final MongoWriter<Document> writer =
+//                 createWriter(collection, batchSize, batchIntervalMs, flushOnCheckpoint)) {
+//      writer.write(buildMessage(1), null);
+//      writer.write(buildMessage(2), null);
+//      writer.write(buildMessage(3), null);
+//      writer.write(buildMessage(4), null);
+//      writer.doBulkWrite();
+//    }
+//
+//    assertThatIdsAreWritten(collectionOf(collection), 1, 2, 3, 4);
+//  }
 }

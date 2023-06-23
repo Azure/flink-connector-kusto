@@ -90,6 +90,11 @@ public class KustoCommitter extends CheckpointCommitter {
         this.table, this.kustoWriteOptions.getDatabase(), Instant.now().toEpochMilli() - startTime);
   }
 
+  /**
+   * Creates the kusto streaming client needed for saving state for WAL.
+   *
+   * @throws Exception If an error occurs while creating the Kusto client
+   */
   @Override
   public void open() throws Exception {
     LOG.debug("Opening KustoCommitter");
@@ -113,6 +118,7 @@ public class KustoCommitter extends CheckpointCommitter {
       this.queryClient.close();
     } catch (Exception e) {
       LOG.warn("Error while closing resources.", e);
+      throw e;
     }
     LOG.debug("Closed KustoCommitter");
   }

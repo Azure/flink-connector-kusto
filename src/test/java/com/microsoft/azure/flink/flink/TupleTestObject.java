@@ -88,7 +88,7 @@ public class TupleTestObject {
   public TupleTestObject(int iterationKey, String typeKey) {
     // randomize values with Random
     Random rand = new Random();
-    this.vnum = rand.nextInt(100);
+    this.vnum = iterationKey;
     this.vdec = rand.nextDouble();
     this.vdate = Instant.now(Clock.systemUTC()).plusSeconds(iterationKey).toString();// Take a
                                                                                      // random date

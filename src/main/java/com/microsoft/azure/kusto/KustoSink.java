@@ -18,8 +18,8 @@ import org.apache.flink.types.Row;
 
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
-import com.microsoft.azure.flink.writer.internal.KustoGenericWriteAheadSink;
 import com.microsoft.azure.flink.writer.internal.committer.KustoCommitter;
+import com.microsoft.azure.flink.writer.internal.sink.KustoGenericWriteAheadSink;
 
 import scala.Product;
 
