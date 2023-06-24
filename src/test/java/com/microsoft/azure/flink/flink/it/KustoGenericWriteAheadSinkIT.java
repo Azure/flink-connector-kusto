@@ -181,7 +181,7 @@ public class KustoGenericWriteAheadSinkIT {
   public void testCaseClassIngest() throws Exception {
     String typeKey = "FlinkCaseClassTest";
     ExecutionConfig config = new ExecutionConfig();
-    TypeInformation<Product> productTypeInformation = TypeInformation.of(new TypeHint<>() {});;
+    TypeInformation<Product> productTypeInformation = TypeInformation.of(new TypeHint<>() {});
     TypeSerializer<?>[] fieldSerializers = new TypeSerializer[8];
     TypeInformation<?>[] types = new TypeInformation[8];
     types[0] = TypeInformation.of(new TypeHint<Integer>() {});
