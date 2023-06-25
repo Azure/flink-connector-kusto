@@ -35,7 +35,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 public class KustoSinkWriterIT {
   private static final Logger LOG = LoggerFactory.getLogger(KustoSinkWriterIT.class);
-  private static final String KEY_COL = "vstr";
   private static Client engineClient;
   private static Client dmClient;
   private static KustoConnectionOptions coordinates;
