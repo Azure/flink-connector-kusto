@@ -9,8 +9,7 @@ import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 
 public class ITSetup {
-  public static KustoConnectionOptions getConnectorProperties() {
-    String testPrefix = "tmpKafkaSinkIT_";
+  public synchronized static KustoConnectionOptions getConnectorProperties() {
     String appId = getProperty("appId", "", false);
     String appKey = getProperty("appKey", "", false);
     String authority = getProperty("authority", "", false);
@@ -20,13 +19,16 @@ public class ITSetup {
   }
 
   public static KustoWriteOptions getWriteOptions() {
+    return getWriteOptions(10_000, 100);
+  }
+
+  public static KustoWriteOptions getWriteOptions(int batchInterval, int batchSize) {
     String database = getProperty("database", "e2e", true);
     String defaultTable =
         String.format("tmpFlinkSinkIT_%s", UUID.randomUUID().toString().replace('-', '_'));
     String table = getProperty("table", defaultTable, true);
     return KustoWriteOptions.builder().withDatabase(database).withTable(table)
-        .withBatchIntervalMs(10_000).withBatchSize(100).build(); // TODO check the -1 batch interval
-    // value
+        .withBatchIntervalMs(batchInterval).withBatchSize(batchSize).build();
   }
 
   private static String getProperty(String attribute, String defaultValue, boolean sanitize) {

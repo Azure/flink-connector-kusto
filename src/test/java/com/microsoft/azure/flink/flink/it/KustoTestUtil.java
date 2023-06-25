@@ -1,0 +1,109 @@
+package com.microsoft.azure.flink.flink.it;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+
+import org.jetbrains.annotations.NotNull;
+import org.json.JSONException;
+import org.skyscreamer.jsonassert.Customization;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.comparator.CustomComparator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.microsoft.azure.flink.config.KustoWriteOptions;
+import com.microsoft.azure.kusto.data.Client;
+import com.microsoft.azure.kusto.data.KustoResultSetTable;
+import com.microsoft.azure.kusto.data.exceptions.DataClientException;
+import com.microsoft.azure.kusto.data.exceptions.DataServiceException;
+
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.retry.RetryRegistry;
+
+import static java.time.temporal.ChronoUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.skyscreamer.jsonassert.JSONCompareMode.LENIENT;
+
+public class KustoTestUtil {
+
+  private static final String KEY_COL = "vstr";
+  private static final Logger LOG = LoggerFactory.getLogger(KustoTestUtil.class);
+
+  public static void performAssertions(Client engineClient, KustoWriteOptions writeOptions,
+      Map<String, String> expectedResults, int maxRecords, String typeKey) {
+    try {
+      // Perform the assertions here
+      Map<String, String> actualRecordsIngested =
+          getActualRecordsIngested(engineClient, writeOptions, maxRecords, typeKey);
+      actualRecordsIngested.keySet().parallelStream().forEach(key -> {
+        LOG.debug("Record queried: {} and expected record {} ", actualRecordsIngested.get(key),
+            expectedResults.get(key));
+        try {
+          JSONAssert.assertEquals(expectedResults.get(key), actualRecordsIngested.get(key),
+              new CustomComparator(LENIENT,
+                  // there are sometimes round off errors in the double values but they are close
+                  // enough to 8 precision
+                  new Customization("vdec",
+                      (vdec1,
+                          vdec2) -> Math.abs(Double.parseDouble(vdec1.toString())
+                              - Double.parseDouble(vdec2.toString())) < 0.000000001),
+
+                  new Customization("vdate", (vdate1, vdate2) -> Instant.parse(vdate1.toString())
+                      .toEpochMilli() == Instant.parse(vdate2.toString()).toEpochMilli())));
+        } catch (JSONException e) {
+          fail(e);
+        }
+      });
+      assertEquals(maxRecords, actualRecordsIngested.size());
+    } catch (Exception e) {
+      LOG.error("Failed to create KustoGenericWriteAheadSink", e);
+      fail(e);
+    }
+  }
+
+  private static @NotNull Map<String, String> getActualRecordsIngested(Client engineClient,
+      KustoWriteOptions writeOptions, int maxRecords, String typeKey) {
+    String query = String.format(
+        "%s | where type == '%s'| project  %s,vresult = pack_all() | order by vstr asc ",
+        writeOptions.getTable(), typeKey, KEY_COL);
+    Predicate<Object> predicate = (results) -> {
+      if (results != null) {
+        LOG.debug("Retrieved records count {}", ((Map<?, ?>) results).size());
+      }
+      return results == null || ((Map<?, ?>) results).isEmpty()
+          || ((Map<?, ?>) results).size() < maxRecords;
+    };
+    // Waits 30 seconds for the records to be ingested. Repeats the poll 5 times , in all 150
+    // seconds
+    RetryConfig config = RetryConfig.custom().maxAttempts(5).retryOnResult(predicate)
+        .waitDuration(Duration.of(30, SECONDS)).build();
+    RetryRegistry registry = RetryRegistry.of(config);
+    Retry retry = registry.retry("ingestRecordService", config);
+    Supplier<Map<String, String>> recordSearchSupplier = () -> {
+      try {
+        LOG.debug("Executing query {} ", query);
+        KustoResultSetTable resultSet =
+            engineClient.execute(writeOptions.getDatabase(), query).getPrimaryResults();
+        Map<String, String> actualResults = new HashMap<>();
+        while (resultSet.next()) {
+          String key = resultSet.getString(KEY_COL);
+          String vResult = resultSet.getString("vresult");
+          LOG.debug("Record queried: {}", vResult);
+          actualResults.put(key, vResult);
+        }
+        return actualResults;
+      } catch (DataServiceException | DataClientException e) {
+        return Collections.emptyMap();
+      }
+    };
+    return retry.executeSupplier(recordSearchSupplier);
+  }
+
+}

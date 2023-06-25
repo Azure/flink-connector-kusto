@@ -83,8 +83,7 @@
     <dependency>
       <groupId>com.azure</groupId>
       <artifactId>azure-storage-blob</artifactId>
-    </dependency>
-    <dependency>
+    </dependency>    <dependency>
       <groupId>com.azure</groupId>
       <artifactId>azure-identity</artifactId>
     </dependency>

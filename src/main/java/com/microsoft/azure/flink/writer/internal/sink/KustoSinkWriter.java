@@ -84,7 +84,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
   }
 
   @VisibleForTesting
-  void doBulkWrite() throws IOException {
+  void doBulkWrite() {
     if (bulkRequests.isEmpty()) {
       // no records to write
       return;
@@ -99,8 +99,8 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
     long bulkActions = writeOptions.getBatchSize();
     boolean isOverMaxBatchSizeLimit = bulkActions != -1 && this.bulkRequests.size() >= bulkActions;
     if (isOverMaxBatchSizeLimit) {
-      LOG.info("**OverMaxBatchSizeLimit triggered at time {} with batch size {}.**", Instant.now(),
-          this.bulkRequests.size());
+      LOG.info("OverMaxBatchSizeLimit triggered at time {} with batch size {}.",
+          Instant.now(Clock.systemUTC()), this.bulkRequests.size());
     }
     return isOverMaxBatchSizeLimit;
   }
