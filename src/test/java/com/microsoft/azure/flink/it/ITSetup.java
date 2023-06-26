@@ -1,13 +1,15 @@
-package com.microsoft.azure.flink.flink;
+package com.microsoft.azure.flink.it;
 
 import java.util.UUID;
 
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.annotation.Internal;
 
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 
+@Internal
 public class ITSetup {
   public synchronized static KustoConnectionOptions getConnectorProperties() {
     String appId = getProperty("appId", "", false);

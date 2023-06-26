@@ -1,12 +1,7 @@
-package com.microsoft.azure.flink.flink.it;
+package com.microsoft.azure.flink.it;
 
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -20,21 +15,21 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.microsoft.azure.flink.TestSinkInitContext;
+import com.microsoft.azure.flink.TupleTestObject;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
-import com.microsoft.azure.flink.flink.TestSinkInitContext;
-import com.microsoft.azure.flink.flink.TupleTestObject;
 import com.microsoft.azure.flink.writer.internal.sink.KustoSinkWriter;
 import com.microsoft.azure.kusto.data.Client;
 import com.microsoft.azure.kusto.data.ClientFactory;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 
-import static com.microsoft.azure.flink.flink.ITSetup.getConnectorProperties;
-import static com.microsoft.azure.flink.flink.ITSetup.getWriteOptions;
+import static com.microsoft.azure.flink.it.ITSetup.getConnectorProperties;
+import static com.microsoft.azure.flink.it.ITSetup.getWriteOptions;
 import static org.junit.jupiter.api.Assertions.fail;
 
-public class KustoSinkWriterIT {
-  private static final Logger LOG = LoggerFactory.getLogger(KustoSinkWriterIT.class);
+public class KustoWriteSinkWriterIT {
+  private static final Logger LOG = LoggerFactory.getLogger(KustoWriteSinkWriterIT.class);
   private static Client engineClient;
   private static Client dmClient;
   private static KustoConnectionOptions coordinates;
@@ -68,8 +63,8 @@ public class KustoSinkWriterIT {
         engineClient = ClientFactory.createClient(engineCsb);
         dmClient = ClientFactory.createClient(dmCsb);
         LOG.info("Creating tables in Kusto");
-        createTables();
-        refreshDm();
+        KustoTestUtil.createTables(engineClient, writeOptions);
+        KustoTestUtil.refreshDm(dmClient, writeOptions);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -123,36 +118,7 @@ public class KustoSinkWriterIT {
 
 
   // https://github.com/apache/flink/blob/master/flink-streaming-java/src/test/java/org/apache/flink/streaming/runtime/operators/GenericWriteAheadSinkTest.java
-  private static void createTables() throws Exception {
-    URL kqlResource = KustoSinkWriterIT.class.getClassLoader().getResource("it-setup.kql");
-    assert kqlResource != null;
-    List<String> kqlsToExecute = Files.readAllLines(Paths.get(kqlResource.toURI())).stream()
-        .map(kql -> kql.replace("TBL", writeOptions.getTable())).collect(Collectors.toList());
-    kqlsToExecute.forEach(kql -> {
-      try {
-        engineClient.execute(writeOptions.getDatabase(), kql);
-      } catch (Exception e) {
-        LOG.error("Failed to execute kql: {}", kql, e);
-      }
-    });
-    LOG.info("Created table {} and associated mappings", writeOptions.getTable());
-  }
 
-  private static void refreshDm() throws Exception {
-    URL kqlResource = KustoSinkWriterIT.class.getClassLoader().getResource("policy-refresh.kql");
-    assert kqlResource != null;
-    List<String> kqlsToExecute = Files.readAllLines(Paths.get(kqlResource.toURI())).stream()
-        .map(kql -> kql.replace("TBL", writeOptions.getTable()))
-        .map(kql -> kql.replace("DB", writeOptions.getDatabase())).collect(Collectors.toList());
-    kqlsToExecute.forEach(kql -> {
-      try {
-        dmClient.execute(kql);
-      } catch (Exception e) {
-        LOG.error("Failed to execute DM kql: {}", kql, e);
-      }
-    });
-    LOG.info("Refreshed cache on DB {}", writeOptions.getDatabase());
-  }
 
 
   // @Test

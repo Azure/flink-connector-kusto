@@ -1,4 +1,4 @@
-package com.microsoft.azure.flink.flink.it;
+package com.microsoft.azure.flink.it;
 
 import java.net.URL;
 import java.nio.file.Files;
@@ -29,9 +29,9 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.microsoft.azure.flink.TupleTestObject;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
-import com.microsoft.azure.flink.flink.TupleTestObject;
 import com.microsoft.azure.flink.writer.internal.committer.KustoCommitter;
 import com.microsoft.azure.flink.writer.internal.sink.KustoGenericWriteAheadSink;
 import com.microsoft.azure.kusto.data.Client;
@@ -40,8 +40,8 @@ import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 
 import scala.Product;
 
-import static com.microsoft.azure.flink.flink.ITSetup.getConnectorProperties;
-import static com.microsoft.azure.flink.flink.ITSetup.getWriteOptions;
+import static com.microsoft.azure.flink.it.ITSetup.getConnectorProperties;
+import static com.microsoft.azure.flink.it.ITSetup.getWriteOptions;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class KustoGenericWriteAheadSinkIT {
@@ -72,8 +72,8 @@ public class KustoGenericWriteAheadSinkIT {
         engineClient = ClientFactory.createClient(engineCsb);
         dmClient = ClientFactory.createClient(dmCsb);
         LOG.info("Creating tables in Kusto");
-        createTables();
-        refreshDm();
+        KustoTestUtil.createTables(engineClient, writeOptions);
+        KustoTestUtil.refreshDm(dmClient, writeOptions);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

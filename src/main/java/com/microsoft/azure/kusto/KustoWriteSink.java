@@ -10,30 +10,37 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.types.Row;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 import com.microsoft.azure.flink.writer.internal.committer.KustoCommitter;
 import com.microsoft.azure.flink.writer.internal.sink.KustoGenericWriteAheadSink;
+import com.microsoft.azure.flink.writer.internal.sink.KustoSink;
+import com.microsoft.azure.flink.writer.internal.sink.KustoSinkCommon;
 
 import scala.Product;
 
-public class KustoSink<IN> {
+public class KustoWriteSink<IN> {
+  protected static final Logger LOG = LoggerFactory.getLogger(KustoSinkCommon.class);
   private final boolean useDataStreamSink;
   private DataStreamSink<IN> sink1;
   private SingleOutputStreamOperator<IN> sink2;
 
-  private KustoSink(DataStreamSink<IN> sink) {
+  private KustoWriteSink(DataStreamSink<IN> sink) {
     sink1 = sink;
     useDataStreamSink = true;
   }
 
-  private KustoSink(SingleOutputStreamOperator<IN> sink) {
+  private KustoWriteSink(SingleOutputStreamOperator<IN> sink) {
     sink2 = sink;
     useDataStreamSink = false;
   }
@@ -51,7 +58,7 @@ public class KustoSink<IN> {
    *
    * @return The named sink.
    */
-  public KustoSink<IN> name(String name) {
+  public KustoWriteSink<IN> name(String name) {
     if (useDataStreamSink) {
       getSinkTransformation().setName(name);
     } else {
@@ -75,7 +82,7 @@ public class KustoSink<IN> {
    * @return The operator with the specified ID.
    */
   @PublicEvolving
-  public KustoSink<IN> uid(String uid) {
+  public KustoWriteSink<IN> uid(String uid) {
     if (useDataStreamSink) {
       getSinkTransformation().setUid(uid);
     } else {
@@ -110,7 +117,7 @@ public class KustoSink<IN> {
    * @return The operator with the user provided hash.
    */
   @PublicEvolving
-  public KustoSink<IN> setUidHash(String uidHash) {
+  public KustoWriteSink<IN> setUidHash(String uidHash) {
     if (useDataStreamSink) {
       getSinkTransformation().setUidHash(uidHash);
     } else {
@@ -125,7 +132,7 @@ public class KustoSink<IN> {
    * @param parallelism The parallelism for this sink.
    * @return The sink with set parallelism.
    */
-  public KustoSink<IN> setParallelism(int parallelism) {
+  public KustoWriteSink<IN> setParallelism(int parallelism) {
     if (useDataStreamSink) {
       sink1.setParallelism(parallelism);
     } else {
@@ -144,7 +151,7 @@ public class KustoSink<IN> {
    *
    * @return The sink with chaining disabled
    */
-  public KustoSink<IN> disableChaining() {
+  public KustoWriteSink<IN> disableChaining() {
     if (useDataStreamSink) {
       sink1.disableChaining();
     } else {
@@ -167,7 +174,7 @@ public class KustoSink<IN> {
    *
    * @param slotSharingGroup The slot sharing group name.
    */
-  public KustoSink<IN> slotSharingGroup(String slotSharingGroup) {
+  public KustoWriteSink<IN> slotSharingGroup(String slotSharingGroup) {
     if (useDataStreamSink) {
       getSinkTransformation().setSlotSharingGroup(slotSharingGroup);
     } else {
@@ -176,13 +183,13 @@ public class KustoSink<IN> {
     return this;
   }
 
-  public static <IN> KustoSinkBuilder<IN> addSink(
+  public static <IN> @NotNull KustoSinkBuilder<IN> addSink(
       org.apache.flink.streaming.api.scala.DataStream<IN> input) {
     return addSink(input.javaStream());
   }
 
   @SuppressWarnings({"unchecked"})
-  public static <IN> KustoSinkBuilder<IN> addSink(DataStream<IN> input) {
+  public static <IN> @NotNull KustoSinkBuilder<IN> addSink(@NotNull DataStream<IN> input) {
     TypeInformation<IN> typeInfo = input.getType();
     if (typeInfo instanceof TupleTypeInfo) {
       DataStream<Tuple> rowInput = (DataStream<Tuple>) input;
@@ -213,7 +220,6 @@ public class KustoSink<IN> {
     protected final TypeSerializer<IN> serializer;
     protected final TypeInformation<IN> typeInfo;
 
-
     public KustoSinkBuilder(DataStream<IN> input, TypeSerializer<IN> serializer,
         TypeInformation<IN> typeInfo) {
       this.input = input;
@@ -239,7 +245,9 @@ public class KustoSink<IN> {
       return this;
     }
 
-    protected abstract KustoSink<IN> createWriteAheadSink() throws Exception;
+    protected abstract KustoWriteSink<IN> createWriteAheadSink() throws Exception;
+
+    protected abstract KustoWriteSink<IN> createSink() throws Exception;
 
     protected void sanityCheck() {
       if (this.connectionOptions == null) {
@@ -248,13 +256,20 @@ public class KustoSink<IN> {
       }
       if (this.writeOptions == null) {
         throw new IllegalArgumentException(
-            "For KustoSink, the database and table to write should be passed through KustoWriteOptions.");
+            "For KustoWriteSink, the database and table to write should be passed through KustoWriteOptions.");
       }
     }
 
-    public KustoSink<IN> build() throws Exception {
+    public KustoWriteSink<IN> build() throws Exception {
       sanityCheck();
-      return createWriteAheadSink();
+      if (writeOptions.getDeliveryGuarantee() == DeliveryGuarantee.AT_LEAST_ONCE) {
+        LOG.info("Creating KustoWriteAheadSink with at-least once guarantee.");
+        return createSink();
+      } else {
+        LOG.info("Creating KustoWriteAheadSink with at-least once guarantee. Checkpoints will be "
+            + "performed in Kusto tables and will have some performance implications");
+        return createWriteAheadSink();
+      }
     }
   }
 
@@ -265,12 +280,20 @@ public class KustoSink<IN> {
     }
 
     @Override
-    protected KustoSink<Row> createWriteAheadSink() throws Exception {
-      new KustoSink<>(input.transform("Kusto Row Sink", null,
+    protected KustoWriteSink<Row> createWriteAheadSink() throws Exception {
+      final KustoGenericWriteAheadSink<Row> kustoGenericWriteAheadSink =
           new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
               new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
-              this.typeInfo, UUID.randomUUID().toString())));
-      return null;
+              this.typeInfo, UUID.randomUUID().toString());
+      return new KustoWriteSink<>(
+          input.transform("Kusto Row Sink", null, kustoGenericWriteAheadSink));
+    }
+
+    @Override
+    protected KustoWriteSink<Row> createSink() throws Exception {
+      final KustoSink<Row> kustoSink = new KustoSink<>(this.connectionOptions, this.writeOptions,
+          this.serializer, this.typeInfo);
+      return new KustoWriteSink<>(input.sinkTo(kustoSink).name("Kusto Row Sink"));
     }
   }
   public static class KustoTupleSinkBuilder<IN extends Tuple> extends KustoSinkBuilder<IN> {
@@ -280,12 +303,20 @@ public class KustoSink<IN> {
     }
 
     @Override
-    protected KustoSink<IN> createWriteAheadSink() throws Exception {
-      new KustoSink<>(input.transform("Kusto Tuple Sink", null,
+    protected KustoWriteSink<IN> createWriteAheadSink() throws Exception {
+      final KustoGenericWriteAheadSink<IN> kustoGenericWriteAheadSink =
           new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
               new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
-              this.typeInfo, UUID.randomUUID().toString())));
-      return null;
+              this.typeInfo, UUID.randomUUID().toString());
+      return new KustoWriteSink<>(
+          input.transform("Kusto Tuple Sink", null, kustoGenericWriteAheadSink));
+    }
+
+    @Override
+    protected KustoWriteSink<IN> createSink() throws Exception {
+      final KustoSink<IN> kustoSink = new KustoSink<>(this.connectionOptions, this.writeOptions,
+          this.serializer, this.typeInfo);
+      return new KustoWriteSink<>(input.sinkTo(kustoSink).name("Kusto Tuple Sink"));
     }
   }
   public static class KustoProductSinkBuilder<IN extends Product> extends KustoSinkBuilder<IN> {
@@ -295,12 +326,19 @@ public class KustoSink<IN> {
     }
 
     @Override
-    protected KustoSink<IN> createWriteAheadSink() throws Exception {
-      new KustoSink<>(input.transform("Kusto Product Sink", null,
+    protected KustoWriteSink<IN> createWriteAheadSink() throws Exception {
+      new KustoWriteSink<>(input.transform("Kusto Product Sink", null,
           new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
               new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
               this.typeInfo, UUID.randomUUID().toString())));
       return null;
+    }
+
+    @Override
+    protected KustoWriteSink<IN> createSink() throws Exception {
+      final KustoSink<IN> kustoSink = new KustoSink<>(this.connectionOptions, this.writeOptions,
+          this.serializer, this.typeInfo);
+      return new KustoWriteSink<>(input.sinkTo(kustoSink).name("Kusto Product Sink"));
     }
   }
 }

@@ -1,13 +1,19 @@
-package com.microsoft.azure.flink.flink.it;
+package com.microsoft.azure.flink.it;
 
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
+import org.apache.flink.annotation.Internal;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.skyscreamer.jsonassert.Customization;
@@ -31,12 +37,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.skyscreamer.jsonassert.JSONCompareMode.LENIENT;
 
+@Internal
 public class KustoTestUtil {
 
   private static final String KEY_COL = "vstr";
   private static final Logger LOG = LoggerFactory.getLogger(KustoTestUtil.class);
 
-  public static void performAssertions(Client engineClient, KustoWriteOptions writeOptions,
+  protected static void performAssertions(Client engineClient, KustoWriteOptions writeOptions,
       Map<String, String> expectedResults, int maxRecords, String typeKey) {
     try {
       // Perform the assertions here
@@ -104,6 +111,40 @@ public class KustoTestUtil {
       }
     };
     return retry.executeSupplier(recordSearchSupplier);
+  }
+
+  protected static void createTables(Client engineClient, KustoWriteOptions writeOptions)
+      throws Exception {
+    URL kqlResource = KustoWriteSinkWriterIT.class.getClassLoader().getResource("it-setup.kql");
+    assert kqlResource != null;
+    List<String> kqlsToExecute = Files.readAllLines(Paths.get(kqlResource.toURI())).stream()
+        .map(kql -> kql.replace("TBL", writeOptions.getTable())).collect(Collectors.toList());
+    kqlsToExecute.forEach(kql -> {
+      try {
+        engineClient.execute(writeOptions.getDatabase(), kql);
+      } catch (Exception e) {
+        LOG.error("Failed to execute kql: {}", kql, e);
+      }
+    });
+    LOG.info("Created table {} and associated mappings", writeOptions.getTable());
+  }
+
+  protected static void refreshDm(Client dmClient, KustoWriteOptions writeOptions)
+      throws Exception {
+    URL kqlResource =
+        KustoWriteSinkWriterIT.class.getClassLoader().getResource("policy-refresh.kql");
+    assert kqlResource != null;
+    List<String> kqlsToExecute = Files.readAllLines(Paths.get(kqlResource.toURI())).stream()
+        .map(kql -> kql.replace("TBL", writeOptions.getTable()))
+        .map(kql -> kql.replace("DB", writeOptions.getDatabase())).collect(Collectors.toList());
+    kqlsToExecute.forEach(kql -> {
+      try {
+        dmClient.execute(kql);
+      } catch (Exception e) {
+        LOG.error("Failed to execute DM kql: {}", kql, e);
+      }
+    });
+    LOG.info("Refreshed cache on DB {}", writeOptions.getDatabase());
   }
 
 }

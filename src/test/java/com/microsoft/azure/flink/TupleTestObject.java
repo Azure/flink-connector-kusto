@@ -1,13 +1,15 @@
-package com.microsoft.azure.flink.flink;
+package com.microsoft.azure.flink;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Random;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple8;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+@Internal
 public class TupleTestObject {
   private static final ObjectMapper MAPPER = new ObjectMapper();
   private int vnum;

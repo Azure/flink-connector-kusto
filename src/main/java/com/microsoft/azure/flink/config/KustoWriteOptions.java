@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Objects;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,9 +39,11 @@ public class KustoWriteOptions {
   private final List<String> ingestByTags;
   private final List<String> additionalTags;
 
+  private final DeliveryGuarantee deliveryGuarantee;
+
   private KustoWriteOptions(String database, String table, String ingestionMappingRef,
       boolean flushImmediately, long batchIntervalMs, long batchSize, List<String> ingestByTags,
-      List<String> additionalTags) {
+      List<String> additionalTags, DeliveryGuarantee deliveryGuarantee) {
     this.database = checkNotNull(database);
     this.table = checkNotNull(table);
     this.ingestionMappingRef = ingestionMappingRef;
@@ -52,6 +55,7 @@ public class KustoWriteOptions {
     this.batchSize = batchSize;
     this.ingestByTags = ingestByTags;
     this.additionalTags = additionalTags;
+    this.deliveryGuarantee = deliveryGuarantee;
   }
 
   public List<String> getIngestByTags() {
@@ -84,6 +88,10 @@ public class KustoWriteOptions {
 
   public long getBatchSize() {
     return batchSize;
+  }
+
+  public DeliveryGuarantee getDeliveryGuarantee() {
+    return deliveryGuarantee;
   }
 
 
@@ -119,6 +127,7 @@ public class KustoWriteOptions {
     private boolean flushImmediately = false;
     private long batchIntervalMs = -1L; // Not applicable by default
     private long batchSize = 1000L; // Or 1000 records
+    private DeliveryGuarantee deliveryGuarantee = DeliveryGuarantee.AT_LEAST_ONCE;
 
     private List<String> ingestByTags = Collections.emptyList();
 
@@ -217,6 +226,11 @@ public class KustoWriteOptions {
       return this;
     }
 
+    public KustoWriteOptions.Builder withDeliveryGuarantee(DeliveryGuarantee deliveryGuarantee) {
+      this.deliveryGuarantee = deliveryGuarantee;
+      return this;
+    }
+
     /**
      * Builds a {@link KustoWriteOptions} instance.
      *
@@ -228,7 +242,7 @@ public class KustoWriteOptions {
             "BatchInterval and BatchSize are applicable options only for SinkWriter and not applicable for GenericWriteAheadSink");
       }
       return new KustoWriteOptions(database, table, ingestionMappingRef, flushImmediately,
-          batchIntervalMs, batchSize, ingestByTags, additionalTags);
+          batchIntervalMs, batchSize, ingestByTags, additionalTags, deliveryGuarantee);
     }
   }
 }

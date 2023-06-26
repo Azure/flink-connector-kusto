@@ -1,4 +1,4 @@
-package com.microsoft.azure.flink.flink.it;
+package com.microsoft.azure.flink.it;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -7,7 +7,7 @@ import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.writer.internal.ContainerProvider;
 
-import static com.microsoft.azure.flink.flink.ITSetup.getConnectorProperties;
+import static com.microsoft.azure.flink.it.ITSetup.getConnectorProperties;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

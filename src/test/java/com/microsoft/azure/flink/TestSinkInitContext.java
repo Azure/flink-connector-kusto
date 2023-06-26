@@ -1,10 +1,11 @@
-package com.microsoft.azure.flink.flink;
+package com.microsoft.azure.flink;
 
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ScheduledFuture;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
@@ -24,6 +25,7 @@ import org.apache.flink.util.UserCodeClassLoader;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
+@Internal
 public class TestSinkInitContext implements Sink.InitContext {
 
   private static final TestProcessingTimeService processingTimeService;
