@@ -264,7 +264,8 @@ public class KustoWriteSink<IN> {
       sanityCheck();
       if (writeOptions.getDeliveryGuarantee() == DeliveryGuarantee.AT_LEAST_ONCE) {
         LOG.info("Creating KustoWriteAheadSink with at-least once guarantee.");
-        return createSink();
+        return createWriteAheadSink();
+        // return createSink();
       } else {
         LOG.info("Creating KustoWriteAheadSink with at-least once guarantee. Checkpoints will be "
             + "performed in Kusto tables and will have some performance implications");
@@ -316,6 +317,8 @@ public class KustoWriteSink<IN> {
     protected KustoWriteSink<IN> createSink() throws Exception {
       final KustoSink<IN> kustoSink = new KustoSink<>(this.connectionOptions, this.writeOptions,
           this.serializer, this.typeInfo);
+      LOG.info("Writing a tuple sink to DB {} in cluster {} ", writeOptions.getDatabase(),
+          connectionOptions.getClusterUrl());
       return new KustoWriteSink<>(input.sinkTo(kustoSink).name("Kusto Tuple Sink"));
     }
   }

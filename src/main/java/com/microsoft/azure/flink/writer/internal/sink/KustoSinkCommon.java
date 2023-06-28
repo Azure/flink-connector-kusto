@@ -94,10 +94,8 @@ public class KustoSinkCommon<IN> {
     this.ingestFailedCounter = metricGroup.counter("failedIngestions");
     this.ingestPartiallyFailedCounter = metricGroup.counter("partialSucceededIngestions");
     this.recordsSent = metricGroup.counter("recordsSent");
-
-
     Class<?> clazzType = serializer.createInstance().getClass();
-    LOG.info("Using WriteAheadSink class type: {}", clazzType);
+    LOG.trace("Using sink with class type: {}", clazzType);
     if (Tuple.class.isAssignableFrom(clazzType)) {
       this.aritySupplier = () -> (((TupleSerializer<?>) serializer)).getArity();
       this.extractFieldValueFunction = (value, index) -> {
@@ -157,7 +155,7 @@ public class KustoSinkCommon<IN> {
         String blobUri = String.format("%s/%s?%s", container.getContainerUrl(), blobName,
             container.getSasToken());
         BlobSourceInfo blobSourceInfo = new BlobSourceInfo(blobUri);
-        LOG.debug("Ingesting into blob: {} with source id {}", blobUri, sourceId);
+        LOG.trace("Ingesting into blob: {} with source id {}", blobUri, sourceId);
         blobSourceInfo.setSourceId(sourceId);
         IngestionProperties ingestionProperties =
             new IngestionProperties(this.writeOptions.getDatabase(), this.writeOptions.getTable());
@@ -183,7 +181,7 @@ public class KustoSinkCommon<IN> {
         ingestionProperties.setFlushImmediately(this.writeOptions.getFlushImmediately());
         // This is when the last upload and queue request happened
         this.lastSendTime = Instant.now(Clock.systemUTC()).toEpochMilli();
-        LOG.debug("Setting last send time to {}", this.lastSendTime);
+        LOG.trace("Setting last send time to {}", this.lastSendTime);
         return this.ingestClient.ingestFromBlob(blobSourceInfo, ingestionProperties);
       } catch (IngestionClientException | IngestionServiceException e) {
         String errorMessage = String
@@ -206,6 +204,8 @@ public class KustoSinkCommon<IN> {
     UUID sourceId = UUID.randomUUID();
     String blobName = String.format("%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
         this.writeOptions.getTable(), sourceId);
+    LOG.trace("Ingesting to blob {} to database {} and table {} ", blobName,
+        writeOptions.getDatabase(), writeOptions.getTable());
     ContainerProvider containerProvider =
         new ContainerProvider.Builder(this.connectionOptions).build();
     ContainerSas uploadContainerSas = containerProvider.getBlobContainer();
@@ -235,6 +235,8 @@ public class KustoSinkCommon<IN> {
         gzip.write(System.lineSeparator().getBytes());
         recordsInBatch++;
       }
+      LOG.debug("Flushed {} records to blob {} to ingest to database {} and table {} ",
+          recordsInBatch, blobName, writeOptions.getDatabase(), writeOptions.getTable());
       // If there are no records in the batch, we will mark this as done.
       if (recordsInBatch == 0) {
         return true;
@@ -263,8 +265,6 @@ public class KustoSinkCommon<IN> {
     return false;
   }
 
-
-
   // https://stackoverflow.com/questions/40251528/how-to-use-executorservice-to-poll-until-a-result-arrives
   protected CompletableFuture<String> pollForCompletion(String blobName, String sourceId,
       IngestionResult ingestionResult) {
@@ -284,7 +284,7 @@ public class KustoSinkCommon<IN> {
       try {
         LOG.debug("Ingestion Status {} for blob {}",
             ingestionResult.getIngestionStatusCollection().stream()
-                .map(is -> is.getIngestionSourceId() + "::" + is.getStatus())
+                .map(is -> is.getIngestionSourceId() + ":" + is.getStatus())
                 .collect(Collectors.joining(",")),
             blobName);
         ingestionResult.getIngestionStatusCollection().stream().filter(
@@ -332,7 +332,5 @@ public class KustoSinkCommon<IN> {
     } catch (Exception e) {
       LOG.error("Error while closing session.", e);
     }
-
   }
-
 }

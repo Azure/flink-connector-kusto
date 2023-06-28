@@ -49,6 +49,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
     SinkWriterMetricGroup metricGroup = checkNotNull(initContext.metricGroup());
     this.numRecordsOut = metricGroup.getNumRecordsSendCounter();
     this.collector = new ListCollector<>(this.bulkRequests);
+    LOG.info("Initializing the class from KustoSinkWriter");
     this.kustoSinkCommon = new KustoSinkCommon<>(checkNotNull(connectionOptions), this.writeOptions,
         metricGroup, serializer, typeInformation);
     // Bunch of metrics to send the data to monitor
@@ -87,8 +88,10 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
   void doBulkWrite() {
     if (bulkRequests.isEmpty()) {
       // no records to write
+      LOG.warn("No records to write to DB {} & table {} ", writeOptions.getDatabase(), writeOptions.getTable());
       return;
     }
+    LOG.debug("Ingesting to DB {} & table {} record count {}", writeOptions.getDatabase(), writeOptions.getTable(),bulkRequests.size());
     if (this.kustoSinkCommon.ingest(this.bulkRequests)) {
       // All the ingestion has completed successfully here. Clear this batch of records
       this.bulkRequests.clear();

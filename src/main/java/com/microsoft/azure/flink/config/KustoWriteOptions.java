@@ -1,11 +1,14 @@
 package com.microsoft.azure.flink.config;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +18,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Options for configuring a Kusto sink. Passes on ClientOptions. Also provides a set of developer
  * options to fine tune behavior
  */
-public class KustoWriteOptions {
+public class KustoWriteOptions implements Serializable {
   protected static final Logger LOG = LoggerFactory.getLogger(KustoWriteOptions.class);
   /* The database to write the data to */
   private final String database;
@@ -35,10 +38,8 @@ public class KustoWriteOptions {
    * collected records & pushed for ingestion
    */
   private final long batchSize;
-
   private final List<String> ingestByTags;
   private final List<String> additionalTags;
-
   private final DeliveryGuarantee deliveryGuarantee;
 
   private KustoWriteOptions(String database, String table, String ingestionMappingRef,
@@ -96,23 +97,12 @@ public class KustoWriteOptions {
 
 
   @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    KustoWriteOptions that = (KustoWriteOptions) o;
-    return Objects.equals(database, that.database) && Objects.equals(table, that.table);
-  }
-
-  @Override
   public int hashCode() {
     return Objects.hash(database, table);
   }
 
-  public static KustoWriteOptions.Builder builder() {
+  @Contract(" -> new")
+  public static KustoWriteOptions.@NotNull Builder builder() {
     return new KustoWriteOptions.Builder();
   }
 

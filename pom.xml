@@ -7,7 +7,6 @@
   <groupId>com.microsoft.azure.kusto</groupId>
   <artifactId>flink-connector-kusto</artifactId>
   <version>1.0-SNAPSHOT</version>
-
   <name>flink-connector-kusto</name>
   <packaging>jar</packaging>
 
@@ -26,8 +25,9 @@
     <jackson.version>2.14.2</jackson.version>
     <java.release.version>11</java.release.version>
     <jsonassert.version>1.5.1</jsonassert.version>
+    <jsonsmart.version>2.4.10</jsonsmart.version>
     <junit5.version>5.8.1</junit5.version>
-    <kusto.version>4.0.4</kusto.version>
+    <kusto.version>5.0.0</kusto.version>
     <log4j.version>2.20.0</log4j.version>
     <mockito.version>5.3.1</mockito.version>
     <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
@@ -83,12 +83,23 @@
     <dependency>
       <groupId>com.azure</groupId>
       <artifactId>azure-storage-blob</artifactId>
-    </dependency>    <dependency>
-      <groupId>com.azure</groupId>
-      <artifactId>azure-identity</artifactId>
     </dependency>
 
-
+    <dependency>
+      <groupId>com.azure</groupId>
+      <artifactId>azure-identity</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>net.minidev</groupId>
+          <artifactId>jsonsmart</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>net.minidev</groupId>
+      <artifactId>json-smart</artifactId>
+      <version>${jsonsmart.version}</version>
+    </dependency>
     <dependency>
       <groupId>com.microsoft.azure.kusto</groupId>
       <artifactId>kusto-ingest</artifactId>
