@@ -28,7 +28,7 @@ public class KustoCommitter extends CheckpointCommitter {
   private final KustoConnectionOptions connectionOptions;
   private final KustoWriteOptions kustoWriteOptions;
   private IngestClient streamingIngestClient;
-  private final Client queryClient;
+  private transient Client queryClient;
   private final String table = "flink_checkpoints";
 
   /**
@@ -48,8 +48,7 @@ public class KustoCommitter extends CheckpointCommitter {
       KustoWriteOptions kustoWriteOptions) throws URISyntaxException {
     this.connectionOptions = connectionOptions;
     this.kustoWriteOptions = kustoWriteOptions;
-    // Need this to be available before the createResource call hits
-    this.queryClient = KustoClientUtil.createClient(this.connectionOptions);
+
   }
 
 
@@ -106,6 +105,11 @@ public class KustoCommitter extends CheckpointCommitter {
       throw new IllegalArgumentException("Database provided was empty for KustoCommitter");
     }
     this.streamingIngestClient = KustoClientUtil.createMangedIngestClient(this.connectionOptions);
+    // Need this to be available before the createResource call hits
+    if(this.queryClient == null) {
+      this.queryClient = KustoClientUtil.createClient(this.connectionOptions);
+      LOG.info("Created query client in open and query client is null: {}", this.queryClient == null);
+    }
     LOG.debug("Opened KustoCommitter");
   }
 
@@ -171,7 +175,7 @@ public class KustoCommitter extends CheckpointCommitter {
           this.table, this.jobId, this.operatorId, subtaskIdx, checkpointId);
       try {
         KustoOperationResult checkpoints =
-            this.queryClient.execute(this.kustoWriteOptions.getDatabase(), statement);
+            queryClient.execute(this.kustoWriteOptions.getDatabase(), statement);
         if (checkpoints != null && checkpoints.getPrimaryResults() != null
             && checkpoints.getPrimaryResults().getData().size() > 0) {
           lastCommittedCheckpoint =

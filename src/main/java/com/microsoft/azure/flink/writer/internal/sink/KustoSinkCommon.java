@@ -71,14 +71,11 @@ public class KustoSinkCommon<IN> {
   private final transient Counter recordsSent;
   private final ScheduledExecutorService pollResultsExecutor =
       Executors.newSingleThreadScheduledExecutor();
-  private final IngestClient ingestClient;
-
+  private transient final IngestClient ingestClient;
   private final KustoConnectionOptions connectionOptions;
-
   protected final transient Supplier<Integer> aritySupplier;
   protected final transient BiFunction<IN, Integer, Object> extractFieldValueFunction;
   protected IngestionMapping ingestionMapping;
-
   protected volatile long lastSendTime = 0L;
   protected volatile long ackTime = Long.MAX_VALUE;
 
