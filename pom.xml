@@ -8,13 +8,17 @@
   <artifactId>flink-connector-kusto</artifactId>
   <version>1.0-SNAPSHOT</version>
   <name>flink-connector-kusto</name>
-  <packaging>jar</packaging>
+  <modules>
+    <module>connector-core</module>
+    <module>samples-java</module>
+  </modules>
+  <packaging>pom</packaging>
 
   <!-- Allow users to pass custom connector versions -->
   <properties>
     <archunit.version>1.0.0</archunit.version>
     <assertj.version>3.24.2</assertj.version>
-    <azure.bom.version>1.2.12</azure.bom.version>
+    <azure.bom.version>1.2.14</azure.bom.version>
     <byte-buddy.version>1.14.4</byte-buddy.version>
     <commoncodec.version>1.15</commoncodec.version>
     <dependency-check-maven.version>8.1.2</dependency-check-maven.version>
@@ -26,13 +30,15 @@
     <java.source.version>1.8</java.source.version>
     <java.target.version>1.8</java.target.version>
     <jsonassert.version>1.5.1</jsonassert.version>
-    <jsonsmart.version>2.4.10</jsonsmart.version>
+    <jsonsmart.version>2.4.11</jsonsmart.version>
     <junit5.version>5.8.1</junit5.version>
-    <kusto.version>5.0.0</kusto.version>
+    <kusto.sdk.version>5.0.0</kusto.sdk.version>
     <log4j.version>2.20.0</log4j.version>
     <mockito.version>5.3.1</mockito.version>
     <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
     <mvn.failsafe.plugin.version>3.0.0</mvn.failsafe.plugin.version>
+    <mvn.shade.plugin.version>3.5.0</mvn.shade.plugin.version>
+    <objenesis.version>2.6</objenesis.version>
     <scala-library.version>2.12.7</scala-library.version>
     <slf4j.version>1.7.36</slf4j.version>
     <woodstox.version>6.5.1</woodstox.version>
@@ -86,95 +92,6 @@
       <artifactId>azure-storage-blob</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>com.azure</groupId>
-      <artifactId>azure-identity</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>net.minidev</groupId>
-          <artifactId>jsonsmart</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>net.minidev</groupId>
-      <artifactId>json-smart</artifactId>
-      <version>${jsonsmart.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.microsoft.azure.kusto</groupId>
-      <artifactId>kusto-ingest</artifactId>
-      <version>${kusto.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-databind</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.fasterxml.woodstox</groupId>
-          <artifactId>woodstox-core</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>commons-codec</groupId>
-          <artifactId>commons-codec</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.azure</groupId>
-          <artifactId>azure-storage-blob</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.azure</groupId>
-          <artifactId>azure-identity</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <version>${jackson.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.fasterxml.woodstox</groupId>
-      <artifactId>woodstox-core</artifactId>
-      <version>${woodstox.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>commons-codec</groupId>
-      <artifactId>commons-codec</artifactId>
-      <version>${commoncodec.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.microsoft.azure.kusto</groupId>
-      <artifactId>kusto-data</artifactId>
-      <version>${kusto.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-databind</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.fasterxml.woodstox</groupId>
-          <artifactId>woodstox-core</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>commons-codec</groupId>
-          <artifactId>commons-codec</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.azure</groupId>
-          <artifactId>azure-storage-blob</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.azure</groupId>
-          <artifactId>azure-identity</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
     <!-- Logging API -->
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -202,14 +119,12 @@
       <version>${jsonassert.version}</version>
       <scope>test</scope>
     </dependency>
-
     <dependency>
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
       <version>${assertj.version}</version>
       <scope>test</scope>
     </dependency>
-
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
@@ -217,21 +132,17 @@
       <type>jar</type>
       <scope>test</scope>
     </dependency>
-
     <dependency>
       <groupId>net.bytebuddy</groupId>
       <artifactId>byte-buddy</artifactId>
       <scope>test</scope>
     </dependency>
-
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-slf4j-impl</artifactId>
       <version>${log4j.version}</version>
       <scope>test</scope>
     </dependency>
-
-
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-core</artifactId>
@@ -302,55 +213,47 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
-
       <dependency>
         <groupId>net.bytebuddy</groupId>
         <artifactId>byte-buddy</artifactId>
         <version>${byte-buddy.version}</version>
       </dependency>
-
       <!-- For dependency convergence -->
       <dependency>
         <groupId>com.esotericsoftware.kryo</groupId>
         <artifactId>kryo</artifactId>
         <version>2.24.0</version>
       </dependency>
-
       <!-- For dependency convergence -->
       <dependency>
         <groupId>org.scala-lang</groupId>
         <artifactId>scala-library</artifactId>
         <version>${scala-library.version}</version>
       </dependency>
-
       <!-- For dependency convergence -->
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
         <version>${slf4j.version}</version>
       </dependency>
-
       <!-- For dependency convergence -->
       <dependency>
         <groupId>org.objenesis</groupId>
         <artifactId>objenesis</artifactId>
-        <version>2.6</version>
+        <version>${objenesis.version}</version>
       </dependency>
-
       <!-- For dependency convergence -->
       <dependency>
         <groupId>org.junit.jupiter</groupId>
         <artifactId>junit-jupiter-api</artifactId>
-        <version>5.8.2</version>
+        <version>${junit5.version}</version>
       </dependency>
-
       <!-- For dependency convergence -->
       <dependency>
         <groupId>org.junit.platform</groupId>
         <artifactId>junit-platform-commons</artifactId>
         <version>1.8.2</version>
       </dependency>
-
     <dependency>
       <groupId>com.azure</groupId>
       <artifactId>azure-sdk-bom</artifactId>
@@ -359,7 +262,6 @@
       <scope>import</scope>
     </dependency>
     </dependencies>
-
   </dependencyManagement>
 
   <build>
@@ -423,6 +325,34 @@
               <includes>
                 <include>**/*IT.java</include>
               </includes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>${mvn.shade.plugin.version}</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <createSourcesJar>true</createSourcesJar>
+              <shadedClassifierName>shaded</shadedClassifierName>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
             </configuration>
           </execution>
         </executions>

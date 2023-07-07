@@ -1,0 +1,18 @@
+.create table StateVector(
+geoAltitude:double,
+longitude:double,
+latitude:double,
+velocity:double,
+heading:double,
+verticalRate:double,
+icao24:string,
+callsign:string,
+onGround:bool,
+lastContact:double,
+lastPositionUpdate:double,
+originCountry:string,
+squawk:string,
+spi:bool,
+baroAltitude:double,
+positionSource:string,
+serials:string)
