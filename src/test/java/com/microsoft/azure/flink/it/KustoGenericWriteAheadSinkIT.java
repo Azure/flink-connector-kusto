@@ -76,7 +76,6 @@ public class KustoGenericWriteAheadSinkIT {
       LOG.info("Skipping test due to missing configuration");
     }
   }
-
   @AfterAll
   public static void tearDown() throws Exception {
     engineClient.execute(writeOptions.getDatabase(),
@@ -94,9 +93,11 @@ public class KustoGenericWriteAheadSinkIT {
                     new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {});
     TypeSerializer<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> serializer =
         typeInfo.createSerializer(new ExecutionConfig());
+    KustoCommitter kustoCommitter = new KustoCommitter(coordinates, writeOptions);
+    kustoCommitter.open();
     KustoGenericWriteAheadSink<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> kustoGenericWriteAheadSink =
         new KustoGenericWriteAheadSink<>(coordinates, writeOptions,
-            new KustoCommitter(coordinates, writeOptions), serializer, typeInfo,
+                kustoCommitter, serializer, typeInfo,
             UUID.randomUUID().toString());
     OneInputStreamOperatorTestHarness<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>, ?> testHarness =
         new OneInputStreamOperatorTestHarness<>(kustoGenericWriteAheadSink);
@@ -132,8 +133,10 @@ public class KustoGenericWriteAheadSinkIT {
       fieldSerializers[i] = types[i].createSerializer(config);
     }
     RowSerializer rowSerializer = new RowSerializer(fieldSerializers);
+    KustoCommitter kustoCommitter = new KustoCommitter(coordinates, writeOptions);
+    kustoCommitter.open();
     KustoGenericWriteAheadSink<Row> kustoGenericWriteAheadSink = new KustoGenericWriteAheadSink<>(
-        coordinates, writeOptions, new KustoCommitter(coordinates, writeOptions), rowSerializer,
+        coordinates, writeOptions, kustoCommitter, rowSerializer,
         rowTypeInformation, UUID.randomUUID().toString());
     OneInputStreamOperatorTestHarness<Row, ?> testHarness =
         new OneInputStreamOperatorTestHarness<>(kustoGenericWriteAheadSink);
@@ -177,8 +180,10 @@ public class KustoGenericWriteAheadSinkIT {
     for (int i = 0; i < 8; i++) {
       fieldSerializers[i] = types[i].createSerializer(config);
     }
+    KustoCommitter kustoCommitter = new KustoCommitter(coordinates, writeOptions);
+    kustoCommitter.open();
     KustoGenericWriteAheadSink<Row> kustoGenericWriteAheadSink = new KustoGenericWriteAheadSink<>(
-        coordinates, writeOptions, new KustoCommitter(coordinates, writeOptions),
+        coordinates, writeOptions,kustoCommitter ,
         new ScalaCaseClassSerializer(scala.Tuple8.class, fieldSerializers), productTypeInformation,
         UUID.randomUUID().toString());
     OneInputStreamOperatorTestHarness<Row, ?> testHarness =
@@ -204,9 +209,11 @@ public class KustoGenericWriteAheadSinkIT {
     ExecutionConfig config = new ExecutionConfig();
     TypeInformation<TupleTestObject> typeInfo = TypeInformation.of(TupleTestObject.class);
     PojoTypeInfo<TupleTestObject> pojoTypeInfo = (PojoTypeInfo<TupleTestObject>) typeInfo;
+    KustoCommitter kustoCommitter = new KustoCommitter(coordinates, writeOptions);
+    kustoCommitter.open();
     KustoGenericWriteAheadSink<TupleTestObject> kustoGenericWriteAheadSink =
         new KustoGenericWriteAheadSink<>(coordinates, writeOptions,
-            new KustoCommitter(coordinates, writeOptions), pojoTypeInfo.createSerializer(config),
+                kustoCommitter, pojoTypeInfo.createSerializer(config),
             pojoTypeInfo, UUID.randomUUID().toString());
     OneInputStreamOperatorTestHarness<TupleTestObject, ?> testHarness =
         new OneInputStreamOperatorTestHarness<>(kustoGenericWriteAheadSink);

@@ -100,11 +100,6 @@ public class TestSinkInitContext implements Sink.InitContext {
   }
 
   @Override
-  public int getAttemptNumber() {
-    return 0;
-  }
-
-  @Override
   public SinkWriterMetricGroup metricGroup() {
     return metricGroup;
   }
