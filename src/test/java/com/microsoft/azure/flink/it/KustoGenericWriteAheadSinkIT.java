@@ -1,15 +1,10 @@
 package com.microsoft.azure.flink.it;
 
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.ExecutionConfig;
@@ -23,6 +18,7 @@ import org.apache.flink.api.scala.typeutils.ScalaCaseClassSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.types.Row;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -46,7 +42,6 @@ import static com.microsoft.azure.flink.it.ITSetup.getWriteOptions;
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class KustoGenericWriteAheadSinkIT {
   private static final Logger LOG = LoggerFactory.getLogger(KustoGenericWriteAheadSinkIT.class);
-
   private static Client engineClient;
   private static Client dmClient;
   private static KustoConnectionOptions coordinates;
@@ -95,7 +90,8 @@ public class KustoGenericWriteAheadSinkIT {
   public void testTupleIngest() throws Exception {
     String typeKey = "FlinkTupleTest";
     TypeInformation<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> typeInfo =
-        TypeInformation.of(new TypeHint<>() {});
+            TypeInformation.of(
+                    new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {});
     TypeSerializer<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> serializer =
         typeInfo.createSerializer(new ExecutionConfig());
     KustoGenericWriteAheadSink<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> kustoGenericWriteAheadSink =
@@ -120,7 +116,8 @@ public class KustoGenericWriteAheadSinkIT {
   public void testRowIngest() throws Exception {
     String typeKey = "FlinkRowTest";
     ExecutionConfig config = new ExecutionConfig();
-    TypeInformation<Row> rowTypeInformation = TypeInformation.of(new TypeHint<>() {});
+    TypeInformation<Row> rowTypeInformation =
+            TypeInformation.of(new TypeHint<Row>() {});
     TypeSerializer<?>[] fieldSerializers = new TypeSerializer[8];
     TypeInformation<?>[] types = new TypeInformation[8];
     types[0] = TypeInformation.of(new TypeHint<Integer>() {});
@@ -165,7 +162,8 @@ public class KustoGenericWriteAheadSinkIT {
   public void testCaseClassIngest() throws Exception {
     String typeKey = "FlinkCaseClassTest";
     ExecutionConfig config = new ExecutionConfig();
-    TypeInformation<Product> productTypeInformation = TypeInformation.of(new TypeHint<>() {});
+    TypeInformation<Product> productTypeInformation =
+            TypeInformation.of(new TypeHint<Product>() {});
     TypeSerializer<?>[] fieldSerializers = new TypeSerializer[8];
     TypeInformation<?>[] types = new TypeInformation[8];
     types[0] = TypeInformation.of(new TypeHint<Integer>() {});
@@ -223,46 +221,13 @@ public class KustoGenericWriteAheadSinkIT {
     performTest(testHarness, expectedResults, maxRecords, typeKey);
   }
 
-  private static void performTest(OneInputStreamOperatorTestHarness<?, ?> testHarness,
-      Map<String, String> expectedResults, int maxRecords, String typeKey) throws Exception {
+  private static void performTest(@NotNull OneInputStreamOperatorTestHarness<?, ?> testHarness,
+                                  Map<String, String> expectedResults, int maxRecords, String typeKey) throws Exception {
     long checkpointId = Instant.now(Clock.systemUTC()).toEpochMilli();
     testHarness.snapshot(checkpointId, Instant.now(Clock.systemUTC()).toEpochMilli());
     testHarness.notifyOfCompletedCheckpoint(checkpointId);
     testHarness.close();
     KustoTestUtil.performAssertions(engineClient, writeOptions, expectedResults, maxRecords,
         typeKey);
-  }
-
-  private static void createTables() throws Exception {
-    URL kqlResource =
-        KustoGenericWriteAheadSinkIT.class.getClassLoader().getResource("it-setup.kql");
-    assert kqlResource != null;
-    List<String> kqlsToExecute = Files.readAllLines(Paths.get(kqlResource.toURI())).stream()
-        .map(kql -> kql.replace("TBL", writeOptions.getTable())).collect(Collectors.toList());
-    kqlsToExecute.forEach(kql -> {
-      try {
-        engineClient.execute(writeOptions.getDatabase(), kql);
-      } catch (Exception e) {
-        LOG.error("Failed to execute kql: {}", kql, e);
-      }
-    });
-    LOG.info("Created table {} and associated mappings", writeOptions.getTable());
-  }
-
-  private static void refreshDm() throws Exception {
-    URL kqlResource =
-        KustoGenericWriteAheadSinkIT.class.getClassLoader().getResource("policy-refresh.kql");
-    assert kqlResource != null;
-    List<String> kqlsToExecute = Files.readAllLines(Paths.get(kqlResource.toURI())).stream()
-        .map(kql -> kql.replace("TBL", writeOptions.getTable()))
-        .map(kql -> kql.replace("DB", writeOptions.getDatabase())).collect(Collectors.toList());
-    kqlsToExecute.forEach(kql -> {
-      try {
-        dmClient.execute(kql);
-      } catch (Exception e) {
-        LOG.error("Failed to execute DM kql: {}", kql, e);
-      }
-    });
-    LOG.info("Refreshed cache on DB {}", writeOptions.getDatabase());
   }
 }

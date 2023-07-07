@@ -61,10 +61,10 @@ public class KustoTestUtil {
                       (vdec1,
                           vdec2) -> Math.abs(Double.parseDouble(vdec1.toString())
                               - Double.parseDouble(vdec2.toString())) < 0.000000001),
-                      new Customization("vreal",
-                              (vreal1,
-                               vreal2) -> Math.abs(Double.parseDouble(vreal1.toString())
-                                      - Double.parseDouble(vreal2.toString())) < 0.000000001),
+                  new Customization("vreal",
+                      (vreal1,
+                          vreal2) -> Math.abs(Double.parseDouble(vreal1.toString())
+                              - Double.parseDouble(vreal2.toString())) < 0.000000001),
                   new Customization("vdate", (vdate1, vdate2) -> Instant.parse(vdate1.toString())
                       .toEpochMilli() == Instant.parse(vdate2.toString()).toEpochMilli())));
         } catch (JSONException e) {

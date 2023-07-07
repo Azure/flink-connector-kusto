@@ -1,7 +1,7 @@
 package com.microsoft.azure.flink.writer.internal.committer;
 
 import java.io.ByteArrayInputStream;
-import java.net.URISyntaxException;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -42,15 +42,12 @@ public class KustoCommitter extends CheckpointCommitter {
    *
    * @param connectionOptions The connection options for the Kusto cluster.
    * @param kustoWriteOptions The write options for the Kusto cluster.
-   * @throws URISyntaxException If the connection string is invalid.
    */
   public KustoCommitter(KustoConnectionOptions connectionOptions,
-      KustoWriteOptions kustoWriteOptions) throws URISyntaxException {
+      KustoWriteOptions kustoWriteOptions) {
     this.connectionOptions = connectionOptions;
     this.kustoWriteOptions = kustoWriteOptions;
-
   }
-
 
   /** Internally used to set the job ID after instantiation. */
   public void setJobId(String id) throws Exception {
@@ -62,7 +59,7 @@ public class KustoCommitter extends CheckpointCommitter {
    */
   @Override
   public void createResource() throws Exception {
-    long startTime = Instant.now().toEpochMilli();
+    long startTime = Instant.now(Clock.systemUTC()).toEpochMilli();
     LOG.debug(
         "Creating resources for KustoCommitter. Creating table {} in database {} and applying policies",
         this.table, this.kustoWriteOptions.getDatabase());
@@ -106,9 +103,9 @@ public class KustoCommitter extends CheckpointCommitter {
     }
     this.streamingIngestClient = KustoClientUtil.createMangedIngestClient(this.connectionOptions);
     // Need this to be available before the createResource call hits
-    if(this.queryClient == null) {
+    if (this.queryClient == null) {
       this.queryClient = KustoClientUtil.createClient(this.connectionOptions);
-      LOG.info("Created query client in open and query client is null: {}", this.queryClient == null);
+      LOG.info("Initialized queryClient in open and query client is null");
     }
     LOG.debug("Opened KustoCommitter");
   }

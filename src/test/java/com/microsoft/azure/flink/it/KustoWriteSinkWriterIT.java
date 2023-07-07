@@ -37,7 +37,9 @@ public class KustoWriteSinkWriterIT {
   private static TestSinkInitContext sinkInitContext;
 
   private final TypeInformation<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> tuple8TypeInformation =
-      TypeInformation.of(new TypeHint<>() {});
+      TypeInformation.of(
+          new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {});
+
   private final TypeSerializer<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> tuple8TypeSerializer =
       tuple8TypeInformation.createSerializer(new ExecutionConfig());
 
@@ -115,60 +117,4 @@ public class KustoWriteSinkWriterIT {
       fail(e);
     }
   }
-
-
-  // https://github.com/apache/flink/blob/master/flink-streaming-java/src/test/java/org/apache/flink/streaming/runtime/operators/GenericWriteAheadSinkTest.java
-
-
-
-  // @Test
-  // void testWriteOnBulkFlush() throws Exception {
-  // final String typeKey = "test-bulk-flush-without-checkpoint";
-  // final boolean flushOnCheckpoint = false;
-  // final int batchSize = 5;
-  // final int batchIntervalMs = -1;
-  // try (KustoSinkWriter<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>
-  // kustoSinkWriter =
-  // new KustoSinkWriter<>(coordinates, getWriteOptions(batchIntervalMs,batchSize),
-  // tuple8TypeSerializer, tuple8TypeInformation, true,
-  // sinkInitContext)) {
-  // kustoSinkWriter.write(new TupleTestObject(201, typeKey).toTuple(), null);
-  // kustoSinkWriter.write(new TupleTestObject(202, typeKey).toTuple(), null);
-  // kustoSinkWriter.write(new TupleTestObject(203, typeKey).toTuple(), null);
-  // kustoSinkWriter.write(new TupleTestObject(204, typeKey).toTuple(), null);
-  // // Ignore flush on checkpoint
-  // kustoSinkWriter.flush(flushOnCheckpoint);
-  // assertThatIdsAreNotWritten(collectionOf(collection), 1, 2, 3, 4);
-  // // Trigger flush
-  // kustoSinkWriter.write(buildMessage(5), null);
-  // assertThatIdsAreWritten(collectionOf(collection), 1, 2, 3, 4, 5);
-  // kustoSinkWriter.write(buildMessage(6), null);
-  // assertThatIdsAreNotWritten(collectionOf(collection), 6);
-  // // Force flush
-  // kustoSinkWriter.doBulkWrite();
-  // assertThatIdsAreWritten(collectionOf(collection), 1, 2, 3, 4, 5, 6);
-  // }
-  // }
-
-
-
-  //
-  // @Test
-  // void testWriteOnBatchIntervalFlush() throws Exception {
-  // final String collection = "test-bulk-flush-with-interval";
-  // final boolean flushOnCheckpoint = false;
-  // final int batchSize = -1;
-  // final int batchIntervalMs = 1000;
-  //
-  // try (final MongoWriter<Document> writer =
-  // createWriter(collection, batchSize, batchIntervalMs, flushOnCheckpoint)) {
-  // writer.write(buildMessage(1), null);
-  // writer.write(buildMessage(2), null);
-  // writer.write(buildMessage(3), null);
-  // writer.write(buildMessage(4), null);
-  // writer.doBulkWrite();
-  // }
-  //
-  // assertThatIdsAreWritten(collectionOf(collection), 1, 2, 3, 4);
-  // }
 }

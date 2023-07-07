@@ -23,7 +23,8 @@
     <formatter.version>2.20.0</formatter.version>
     <impsort.version>1.8.0</impsort.version>
     <jackson.version>2.14.2</jackson.version>
-    <java.release.version>11</java.release.version>
+    <java.source.version>1.8</java.source.version>
+    <java.target.version>1.8</java.target.version>
     <jsonassert.version>1.5.1</jsonassert.version>
     <jsonsmart.version>2.4.10</jsonsmart.version>
     <junit5.version>5.8.1</junit5.version>
@@ -369,7 +370,8 @@
         <version>${mvn.compiler.plugin.version}</version>
         <inherited>true</inherited>
         <configuration>
-          <release>${java.release.version}</release>
+          <source>${java.source.version}</source>
+          <target>${java.target.version}</target>
         </configuration>
       </plugin>
       <!-- Makes it easier to have consist import order -->

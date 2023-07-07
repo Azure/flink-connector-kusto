@@ -2,10 +2,12 @@ package com.microsoft.azure.flink.writer.internal.sink;
 
 import java.net.URISyntaxException;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.java.ClosureCleaner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +31,7 @@ public class KustoSink<IN> implements Sink<IN> {
     this.writeOptions = checkNotNull(writeOptions);
     this.serializer = checkNotNull(serializer);
     this.typeInfo = checkNotNull(typeInfo);
-    // ClosureCleaner.clean(serializer, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+    ClosureCleaner.clean(serializer, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
   }
 
   @Override

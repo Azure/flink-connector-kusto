@@ -88,10 +88,12 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
   void doBulkWrite() {
     if (bulkRequests.isEmpty()) {
       // no records to write
-      LOG.warn("No records to write to DB {} & table {} ", writeOptions.getDatabase(), writeOptions.getTable());
+      LOG.warn("No records to write to DB {} & table {} ", writeOptions.getDatabase(),
+          writeOptions.getTable());
       return;
     }
-    LOG.debug("Ingesting to DB {} & table {} record count {}", writeOptions.getDatabase(), writeOptions.getTable(),bulkRequests.size());
+    LOG.debug("Ingesting to DB {} & table {} record count {}", writeOptions.getDatabase(),
+        writeOptions.getTable(), bulkRequests.size());
     if (this.kustoSinkCommon.ingest(this.bulkRequests)) {
       // All the ingestion has completed successfully here. Clear this batch of records
       this.bulkRequests.clear();

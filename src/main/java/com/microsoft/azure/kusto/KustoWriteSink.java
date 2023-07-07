@@ -212,8 +212,8 @@ public class KustoWriteSink<IN> {
     }
     if (typeInfo instanceof PojoTypeInfo) {
       return new KustoPojoSinkBuilder<>(input,
-              input.getType().createSerializer(input.getExecutionEnvironment().getConfig()),
-              input.getType());
+          input.getType().createSerializer(input.getExecutionEnvironment().getConfig()),
+          input.getType());
     }
     throw new IllegalArgumentException(
         "No support for the type of the given DataStream: " + input.getType());
@@ -270,8 +270,7 @@ public class KustoWriteSink<IN> {
       sanityCheck();
       if (writeOptions.getDeliveryGuarantee() == DeliveryGuarantee.AT_LEAST_ONCE) {
         LOG.info("Creating KustoWriteAheadSink with at-least once guarantee.");
-        return createWriteAheadSink();
-        // return createSink();
+        return createSink();
       } else {
         LOG.info("Creating KustoWriteAheadSink with at-least once guarantee. Checkpoints will be "
             + "performed in Kusto tables and will have some performance implications");
@@ -351,20 +350,22 @@ public class KustoWriteSink<IN> {
   }
   public static class KustoPojoSinkBuilder<IN> extends KustoSinkBuilder<IN> {
     public KustoPojoSinkBuilder(DataStream<IN> input, TypeSerializer<IN> serializer,
-                                   TypeInformation<IN> typeInfo) {
+        TypeInformation<IN> typeInfo) {
       super(input, serializer, typeInfo);
     }
+
     @Override
     protected KustoWriteSink<IN> createWriteAheadSink() throws Exception {
       return new KustoWriteSink<>(input.transform("Kusto Pojo Sink", null,
-              new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
-                      new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
-                      this.typeInfo, UUID.randomUUID().toString())));
+          new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
+              new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
+              this.typeInfo, UUID.randomUUID().toString())));
     }
+
     @Override
     protected KustoWriteSink<IN> createSink() throws Exception {
       final KustoSink<IN> kustoSink = new KustoSink<>(this.connectionOptions, this.writeOptions,
-              this.serializer, this.typeInfo);
+          this.serializer, this.typeInfo);
       return new KustoWriteSink<>(input.sinkTo(kustoSink).name("Kusto Pojo Sink"));
     }
   }
