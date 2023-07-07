@@ -47,7 +47,8 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
       throw new IllegalStateException("The write-ahead log requires checkpointing to be enabled.");
     }
     this.kustoSinkCommon = new KustoSinkCommon<>(this.connectionOptions, this.writeOptions,
-        super.getRuntimeContext().getMetricGroup(), this.serializer, this.typeInformation);
+        super.getRuntimeContext().getMetricGroup(), this.serializer, this.typeInformation,
+        KustoGenericWriteAheadSink.class.getSimpleName());
   }
 
   @Override

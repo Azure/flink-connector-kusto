@@ -82,11 +82,11 @@ public class KustoSinkCommon<IN> {
 
   protected KustoSinkCommon(KustoConnectionOptions connectionOptions,
       KustoWriteOptions writeOptions, MetricGroup metricGroup, TypeSerializer<IN> serializer,
-      TypeInformation<IN> typeInformation) throws URISyntaxException {
+      TypeInformation<IN> typeInformation, String sourceClass) throws URISyntaxException {
     this.connectionOptions = connectionOptions;
     this.writeOptions = writeOptions;
     this.ingestClient = KustoClientUtil.createIngestClient(checkNotNull(connectionOptions,
-        "Connection options passed to ingest client cannot be null."));
+        "Connection options passed to ingest client cannot be null."), sourceClass);
     this.ingestSucceededCounter = metricGroup.counter("succeededIngestions");
     this.ingestFailedCounter = metricGroup.counter("failedIngestions");
     this.ingestPartiallyFailedCounter = metricGroup.counter("partialSucceededIngestions");

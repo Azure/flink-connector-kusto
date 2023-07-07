@@ -59,10 +59,6 @@ public class ContainerProvider implements Serializable {
     return containerProviderInstance;
   }
 
-  public ContainerProvider getInstance() {
-    return containerProviderInstance;
-  }
-
   public ContainerSas getBlobContainer() {
     // Not expired and a double check the list is not empty
     if (isCacheExpired()) {
@@ -80,8 +76,10 @@ public class ContainerProvider implements Serializable {
 
   private Supplier<ContainerSas> getContainerSupplier() {
     return () -> {
-      try (Client ingestClient = KustoClientUtil.createDMClient(checkNotNull(this.connectionOptions,
-          "Connection options passed to DM client cannot be null."))) {
+      try (Client ingestClient = KustoClientUtil.createDMClient(
+          checkNotNull(this.connectionOptions,
+              "Connection options passed to DM client cannot be null."),
+          ContainerProvider.class.getSimpleName())) {
         CONTAINER_SAS.clear();
         KustoOperationResult queryResult = ingestClient.execute(GET_TEMP_STORAGE_CONTAINER);
         if (queryResult != null && queryResult.getPrimaryResults() != null) {

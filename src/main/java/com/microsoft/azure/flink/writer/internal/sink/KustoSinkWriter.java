@@ -51,7 +51,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
     this.collector = new ListCollector<>(this.bulkRequests);
     LOG.info("Initializing the class from KustoSinkWriter");
     this.kustoSinkCommon = new KustoSinkCommon<>(checkNotNull(connectionOptions), this.writeOptions,
-        metricGroup, serializer, typeInformation);
+        metricGroup, serializer, typeInformation, KustoSinkWriter.class.getSimpleName());
     // Bunch of metrics to send the data to monitor
     metricGroup.setCurrentSendTimeGauge(
         () -> this.kustoSinkCommon.ackTime - this.kustoSinkCommon.lastSendTime);

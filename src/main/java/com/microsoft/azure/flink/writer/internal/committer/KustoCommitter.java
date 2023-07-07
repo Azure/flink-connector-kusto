@@ -101,10 +101,12 @@ public class KustoCommitter extends CheckpointCommitter {
     if (StringUtils.isEmpty(this.kustoWriteOptions.getDatabase())) {
       throw new IllegalArgumentException("Database provided was empty for KustoCommitter");
     }
-    this.streamingIngestClient = KustoClientUtil.createMangedIngestClient(this.connectionOptions);
+    String thisClassName = KustoCommitter.class.getSimpleName();
+    this.streamingIngestClient =
+        KustoClientUtil.createMangedIngestClient(this.connectionOptions, thisClassName);
     // Need this to be available before the createResource call hits
     if (this.queryClient == null) {
-      this.queryClient = KustoClientUtil.createClient(this.connectionOptions);
+      this.queryClient = KustoClientUtil.createClient(this.connectionOptions, thisClassName);
       LOG.info("Initialized queryClient in open and query client is null");
     }
     LOG.debug("Opened KustoCommitter");

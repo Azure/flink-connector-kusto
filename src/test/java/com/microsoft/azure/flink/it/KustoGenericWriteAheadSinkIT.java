@@ -76,6 +76,7 @@ public class KustoGenericWriteAheadSinkIT {
       LOG.info("Skipping test due to missing configuration");
     }
   }
+
   @AfterAll
   public static void tearDown() throws Exception {
     engineClient.execute(writeOptions.getDatabase(),
@@ -89,16 +90,15 @@ public class KustoGenericWriteAheadSinkIT {
   public void testTupleIngest() throws Exception {
     String typeKey = "FlinkTupleTest";
     TypeInformation<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> typeInfo =
-            TypeInformation.of(
-                    new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {});
+        TypeInformation.of(
+            new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {});
     TypeSerializer<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> serializer =
         typeInfo.createSerializer(new ExecutionConfig());
     KustoCommitter kustoCommitter = new KustoCommitter(coordinates, writeOptions);
     kustoCommitter.open();
     KustoGenericWriteAheadSink<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> kustoGenericWriteAheadSink =
-        new KustoGenericWriteAheadSink<>(coordinates, writeOptions,
-                kustoCommitter, serializer, typeInfo,
-            UUID.randomUUID().toString());
+        new KustoGenericWriteAheadSink<>(coordinates, writeOptions, kustoCommitter, serializer,
+            typeInfo, UUID.randomUUID().toString());
     OneInputStreamOperatorTestHarness<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>, ?> testHarness =
         new OneInputStreamOperatorTestHarness<>(kustoGenericWriteAheadSink);
     int maxRecords = 100;
@@ -117,8 +117,7 @@ public class KustoGenericWriteAheadSinkIT {
   public void testRowIngest() throws Exception {
     String typeKey = "FlinkRowTest";
     ExecutionConfig config = new ExecutionConfig();
-    TypeInformation<Row> rowTypeInformation =
-            TypeInformation.of(new TypeHint<Row>() {});
+    TypeInformation<Row> rowTypeInformation = TypeInformation.of(new TypeHint<Row>() {});
     TypeSerializer<?>[] fieldSerializers = new TypeSerializer[8];
     TypeInformation<?>[] types = new TypeInformation[8];
     types[0] = TypeInformation.of(new TypeHint<Integer>() {});
@@ -135,9 +134,9 @@ public class KustoGenericWriteAheadSinkIT {
     RowSerializer rowSerializer = new RowSerializer(fieldSerializers);
     KustoCommitter kustoCommitter = new KustoCommitter(coordinates, writeOptions);
     kustoCommitter.open();
-    KustoGenericWriteAheadSink<Row> kustoGenericWriteAheadSink = new KustoGenericWriteAheadSink<>(
-        coordinates, writeOptions, kustoCommitter, rowSerializer,
-        rowTypeInformation, UUID.randomUUID().toString());
+    KustoGenericWriteAheadSink<Row> kustoGenericWriteAheadSink =
+        new KustoGenericWriteAheadSink<>(coordinates, writeOptions, kustoCommitter, rowSerializer,
+            rowTypeInformation, UUID.randomUUID().toString());
     OneInputStreamOperatorTestHarness<Row, ?> testHarness =
         new OneInputStreamOperatorTestHarness<>(kustoGenericWriteAheadSink);
     int maxRecords = 100;
@@ -166,7 +165,7 @@ public class KustoGenericWriteAheadSinkIT {
     String typeKey = "FlinkCaseClassTest";
     ExecutionConfig config = new ExecutionConfig();
     TypeInformation<Product> productTypeInformation =
-            TypeInformation.of(new TypeHint<Product>() {});
+        TypeInformation.of(new TypeHint<Product>() {});
     TypeSerializer<?>[] fieldSerializers = new TypeSerializer[8];
     TypeInformation<?>[] types = new TypeInformation[8];
     types[0] = TypeInformation.of(new TypeHint<Integer>() {});
@@ -182,10 +181,10 @@ public class KustoGenericWriteAheadSinkIT {
     }
     KustoCommitter kustoCommitter = new KustoCommitter(coordinates, writeOptions);
     kustoCommitter.open();
-    KustoGenericWriteAheadSink<Row> kustoGenericWriteAheadSink = new KustoGenericWriteAheadSink<>(
-        coordinates, writeOptions,kustoCommitter ,
-        new ScalaCaseClassSerializer(scala.Tuple8.class, fieldSerializers), productTypeInformation,
-        UUID.randomUUID().toString());
+    KustoGenericWriteAheadSink<Row> kustoGenericWriteAheadSink =
+        new KustoGenericWriteAheadSink<>(coordinates, writeOptions, kustoCommitter,
+            new ScalaCaseClassSerializer(scala.Tuple8.class, fieldSerializers),
+            productTypeInformation, UUID.randomUUID().toString());
     OneInputStreamOperatorTestHarness<Row, ?> testHarness =
         new OneInputStreamOperatorTestHarness<>(kustoGenericWriteAheadSink);
     int maxRecords = 100;
@@ -212,9 +211,8 @@ public class KustoGenericWriteAheadSinkIT {
     KustoCommitter kustoCommitter = new KustoCommitter(coordinates, writeOptions);
     kustoCommitter.open();
     KustoGenericWriteAheadSink<TupleTestObject> kustoGenericWriteAheadSink =
-        new KustoGenericWriteAheadSink<>(coordinates, writeOptions,
-                kustoCommitter, pojoTypeInfo.createSerializer(config),
-            pojoTypeInfo, UUID.randomUUID().toString());
+        new KustoGenericWriteAheadSink<>(coordinates, writeOptions, kustoCommitter,
+            pojoTypeInfo.createSerializer(config), pojoTypeInfo, UUID.randomUUID().toString());
     OneInputStreamOperatorTestHarness<TupleTestObject, ?> testHarness =
         new OneInputStreamOperatorTestHarness<>(kustoGenericWriteAheadSink);
     int maxRecords = 100;
@@ -229,7 +227,7 @@ public class KustoGenericWriteAheadSinkIT {
   }
 
   private static void performTest(@NotNull OneInputStreamOperatorTestHarness<?, ?> testHarness,
-                                  Map<String, String> expectedResults, int maxRecords, String typeKey) throws Exception {
+      Map<String, String> expectedResults, int maxRecords, String typeKey) throws Exception {
     long checkpointId = Instant.now(Clock.systemUTC()).toEpochMilli();
     testHarness.snapshot(checkpointId, Instant.now(Clock.systemUTC()).toEpochMilli());
     testHarness.notifyOfCompletedCheckpoint(checkpointId);
