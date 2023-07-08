@@ -2,9 +2,9 @@ package com.microsoft.flink.kusto;
 
 import java.io.FileNotFoundException;
 
+import org.apache.flink.api.java.tuple.Tuple17;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.opensky.model.StateVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +19,8 @@ public class FlinkKusto {
     try {
       // load properties from file
       final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-      DataStream<StateVector> openSkyStream = env.addSource(new OpenSkyApiSource());
+      DataStream<Tuple17<Double, Double, Double, Double, Double, Double, String, String, Boolean, Double, Double, String, String, Boolean, Double, String, String>> openSkyStream =
+          env.addSource(new OpenSkyApiSource());
       String appId = "";
       String appKey = "";
       String cluster = "";
@@ -32,9 +33,7 @@ public class FlinkKusto {
           KustoWriteOptions.builder().withDatabase(database).withTable(defaultTable)
               .withFlushImmediately(true).withBatchIntervalMs(1000).withBatchSize(10).build();
       KustoWriteSink.addSink(openSkyStream).setConnectionOptions(kustoConnectionOptions)
-          .setWriteOptions(kustoWriteOptions).build().setParallelism(2)
-          .name(defaultTable + " Kusto Sink")
-          .uid(defaultTable + " Kusto Sink");
+          .setWriteOptions(kustoWriteOptions).build().setParallelism(2);
       env.execute("Flink Open Sky Demo");
     } catch (FileNotFoundException e) {
       LOG.error("FileNotFoundException", e);

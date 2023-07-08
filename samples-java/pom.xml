@@ -35,7 +35,7 @@
                 <groupId>net.revelc.code.formatter</groupId>
                 <artifactId>formatter-maven-plugin</artifactId>
                 <configuration>
-                    <configFile>${project.parent}/formatter.xml</configFile>
+                    <configFile>${project.parent.basedir}/formatter.xml</configFile>
                     <encoding>UTF-8</encoding>
                     <lineEnding>KEEP</lineEnding>
                 </configuration>
