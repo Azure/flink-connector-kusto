@@ -1,6 +1,7 @@
 package com.microsoft.azure.flink.writer.internal.sink;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.time.Clock;
 import java.time.Instant;
@@ -13,6 +14,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -39,7 +41,6 @@ import org.slf4j.LoggerFactory;
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobContainerClientBuilder;
-import com.azure.storage.blob.specialized.BlobOutputStream;
 import com.microsoft.azure.flink.common.KustoClientUtil;
 import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.common.KustoRetryUtil;
@@ -198,38 +199,44 @@ public class KustoSinkCommon<IN> {
     if (bulkRequests == null) {
       return true;
     }
-    UUID sourceId = UUID.randomUUID();
-    String blobName = String.format("%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
-        this.writeOptions.getTable(), sourceId);
-    LOG.trace("Ingesting to blob {} to database {} and table {} ", blobName,
-        writeOptions.getDatabase(), writeOptions.getTable());
     ContainerProvider containerProvider =
         new ContainerProvider.Builder(this.connectionOptions).build();
     ContainerSas uploadContainerSas = containerProvider.getBlobContainer();
     String sasConnectionString = uploadContainerSas.toString();
     BlobContainerClient blobContainerClient =
         new BlobContainerClientBuilder().endpoint(sasConnectionString).buildClient();
+
+    UUID sourceId = UUID.randomUUID();
+    String blobName = String.format("%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
+        this.writeOptions.getTable(), sourceId);
     boolean isUploadSuccessful = true;
-    BlobClient uploadClient = blobContainerClient.getBlobClient(blobName);
-    // Is a side effect. Can be a bit more polished but it is easier to send the total metric in one
-    // shot.
+    // Is a side effect. Can be a bit more polished, it is easier to send the total metric in one
+    // go.
     int recordsInBatch = 0;
-    try (
-        BlobOutputStream blobOutputStream =
-            uploadClient.getBlockBlobClient().getBlobOutputStream(true);
-        GZIPOutputStream gzip = new GZIPOutputStream(blobOutputStream)) {
+    AtomicInteger idx = new AtomicInteger(0);
+    try (BlobOutputMultiVolume compressedBlob =
+        new BlobOutputMultiVolume(this.writeOptions.getClientBatchSizeLimit(), () -> {
+          String blobNameWithIndex =
+              String.format("%s-%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
+                  this.writeOptions.getTable(), sourceId, idx.getAndIncrement());
+          LOG.trace("Ingesting to blob {} to database {} and table {} and switching to blob {}",
+              blobName, writeOptions.getDatabase(), writeOptions.getTable(), blobNameWithIndex);
+          OutputStream byteOut = blobContainerClient.getBlobClient(blobNameWithIndex)
+              .getBlockBlobClient().getBlobOutputStream(true);
+          return new GZIPOutputStream(byteOut);
+        })) {
       for (IN value : bulkRequests) {
         int arity = this.aritySupplier.get();
         for (int i = 0; i < arity; i++) {
           Object fieldValue = this.extractFieldValueFunction.apply(value, i);
           if (fieldValue != null) {
-            gzip.write(StringEscapeUtils.escapeCsv(fieldValue.toString()).getBytes());
+            compressedBlob.write(StringEscapeUtils.escapeCsv(fieldValue.toString()).getBytes());
           }
           if (i < arity - 1) {
-            gzip.write(",".getBytes());
+            compressedBlob.write(",".getBytes());
           }
         }
-        gzip.write(System.lineSeparator().getBytes());
+        compressedBlob.write(System.lineSeparator().getBytes());
         recordsInBatch++;
       }
       LOG.debug("Flushed {} records to blob {} to ingest to database {} and table {} ",

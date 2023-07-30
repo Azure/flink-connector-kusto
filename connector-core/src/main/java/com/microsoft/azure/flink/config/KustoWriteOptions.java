@@ -38,13 +38,14 @@ public class KustoWriteOptions implements Serializable {
    * collected records & pushed for ingestion
    */
   private final long batchSize;
+  private final long clientBatchSizeLimit;
   private final List<String> ingestByTags;
   private final List<String> additionalTags;
   private final DeliveryGuarantee deliveryGuarantee;
 
   private KustoWriteOptions(String database, String table, String ingestionMappingRef,
-      boolean flushImmediately, long batchIntervalMs, long batchSize, List<String> ingestByTags,
-      List<String> additionalTags, DeliveryGuarantee deliveryGuarantee) {
+      boolean flushImmediately, long batchIntervalMs, long batchSize, long clientBatchSizeLimit,
+      List<String> ingestByTags, List<String> additionalTags, DeliveryGuarantee deliveryGuarantee) {
     this.database = checkNotNull(database);
     this.table = checkNotNull(table);
     this.ingestionMappingRef = ingestionMappingRef;
@@ -54,6 +55,7 @@ public class KustoWriteOptions implements Serializable {
     }
     this.batchIntervalMs = batchIntervalMs;
     this.batchSize = batchSize;
+    this.clientBatchSizeLimit = clientBatchSizeLimit;
     this.ingestByTags = ingestByTags;
     this.additionalTags = additionalTags;
     this.deliveryGuarantee = deliveryGuarantee;
@@ -91,6 +93,10 @@ public class KustoWriteOptions implements Serializable {
     return batchSize;
   }
 
+  public long getClientBatchSizeLimit() {
+    return clientBatchSizeLimit;
+  }
+
   public DeliveryGuarantee getDeliveryGuarantee() {
     return deliveryGuarantee;
   }
@@ -111,12 +117,11 @@ public class KustoWriteOptions implements Serializable {
   public static class Builder {
     private String database;
     private String table;
-
     private String ingestionMappingRef = null;
-
     private boolean flushImmediately = false;
     private long batchIntervalMs = -1L; // Not applicable by default
     private long batchSize = 1000L; // Or 1000 records
+    private long clientBatchSizeLimit = 300 * 1024 * 1024; // Or 300 MB
     private DeliveryGuarantee deliveryGuarantee = DeliveryGuarantee.AT_LEAST_ONCE;
 
     private List<String> ingestByTags = Collections.emptyList();
@@ -221,6 +226,11 @@ public class KustoWriteOptions implements Serializable {
       return this;
     }
 
+    public KustoWriteOptions.Builder withClientBatchSizeLimit(long clientBatchSizeLimit) {
+      this.clientBatchSizeLimit = clientBatchSizeLimit;
+      return this;
+    }
+
     /**
      * Builds a {@link KustoWriteOptions} instance.
      *
@@ -232,7 +242,8 @@ public class KustoWriteOptions implements Serializable {
             "BatchInterval and BatchSize are applicable options only for SinkWriter and not applicable for GenericWriteAheadSink");
       }
       return new KustoWriteOptions(database, table, ingestionMappingRef, flushImmediately,
-          batchIntervalMs, batchSize, ingestByTags, additionalTags, deliveryGuarantee);
+          batchIntervalMs, batchSize, clientBatchSizeLimit, ingestByTags, additionalTags,
+          deliveryGuarantee);
     }
   }
 }
