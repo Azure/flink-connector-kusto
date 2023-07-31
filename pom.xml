@@ -38,6 +38,7 @@
     <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
     <mvn.failsafe.plugin.version>3.0.0</mvn.failsafe.plugin.version>
     <mvn.shade.plugin.version>3.5.0</mvn.shade.plugin.version>
+    <netty.version>4.1.94.Final</netty.version>
     <objenesis.version>2.6</objenesis.version>
     <scala-library.version>2.12.7</scala-library.version>
     <slf4j.version>1.7.36</slf4j.version>
