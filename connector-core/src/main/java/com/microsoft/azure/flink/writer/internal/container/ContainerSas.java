@@ -1,5 +1,8 @@
 package com.microsoft.azure.flink.writer.internal.container;
 
+import org.apache.flink.annotation.Internal;
+
+@Internal
 public class ContainerSas {
   private final String containerUrl;
   private final String sasToken;

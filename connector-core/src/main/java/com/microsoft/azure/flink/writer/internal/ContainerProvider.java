@@ -13,6 +13,8 @@ import java.util.Random;
 import java.util.function.Supplier;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +32,8 @@ import io.github.resilience4j.retry.Retry;
 import static com.microsoft.azure.flink.common.KustoRetryUtil.getRetries;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+@Internal
+@PublicEvolving
 public class ContainerProvider implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(ContainerProvider.class);
   private static final long serialVersionUID = 1L;
@@ -84,7 +88,7 @@ public class ContainerProvider implements Serializable {
         KustoOperationResult queryResult = ingestClient.execute(GET_TEMP_STORAGE_CONTAINER);
         if (queryResult != null && queryResult.getPrimaryResults() != null) {
           queryResult.getPrimaryResults().getData().stream()
-              .filter(row -> row.size() > 0 && row.get(0) != null
+              .filter(row -> row!=null && !row.isEmpty() && row.get(0) != null
                   && StringUtils.isNotEmpty(row.get(0).toString()))
               .map(row -> row.get(0).toString().split("\\?")).forEach(parts -> {
                 LOG.info("Adding container post refresh {}", parts[0]);

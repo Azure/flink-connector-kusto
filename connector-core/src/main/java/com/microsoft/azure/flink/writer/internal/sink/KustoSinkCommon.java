@@ -1,6 +1,7 @@
 package com.microsoft.azure.flink.writer.internal.sink;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.time.Clock;
 import java.time.Instant;
@@ -13,6 +14,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -36,10 +38,8 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobContainerClientBuilder;
-import com.azure.storage.blob.specialized.BlobOutputStream;
 import com.microsoft.azure.flink.common.KustoClientUtil;
 import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.common.KustoRetryUtil;
@@ -198,42 +198,60 @@ public class KustoSinkCommon<IN> {
     if (bulkRequests == null) {
       return true;
     }
-    UUID sourceId = UUID.randomUUID();
-    String blobName = String.format("%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
-        this.writeOptions.getTable(), sourceId);
-    LOG.trace("Ingesting to blob {} to database {} and table {} ", blobName,
-        writeOptions.getDatabase(), writeOptions.getTable());
     ContainerProvider containerProvider =
         new ContainerProvider.Builder(this.connectionOptions).build();
     ContainerSas uploadContainerSas = containerProvider.getBlobContainer();
     String sasConnectionString = uploadContainerSas.toString();
     BlobContainerClient blobContainerClient =
         new BlobContainerClientBuilder().endpoint(sasConnectionString).buildClient();
+
+    UUID sourceId = UUID.randomUUID();
     boolean isUploadSuccessful = true;
-    BlobClient uploadClient = blobContainerClient.getBlobClient(blobName);
-    // Is a side effect. Can be a bit more polished but it is easier to send the total metric in one
-    // shot.
+    // Is a side effect. Can be a bit more polished, it is easier to send the total metric in one
+    // go.
     int recordsInBatch = 0;
-    try (
-        BlobOutputStream blobOutputStream =
-            uploadClient.getBlockBlobClient().getBlobOutputStream(true);
-        GZIPOutputStream gzip = new GZIPOutputStream(blobOutputStream)) {
+    AtomicInteger idx = new AtomicInteger(0);
+    try (BlobOutputMultiVolume compressedBlob =
+        new BlobOutputMultiVolume(this.writeOptions.getClientBatchSizeLimit(), () -> {
+          String blobNameWithIndex =
+              String.format("%s-%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
+                  this.writeOptions.getTable(), sourceId, idx.incrementAndGet());
+          LOG.debug("Ingesting to blob {} to database {} and table {} and switching to blob {}",
+              blobNameWithIndex, writeOptions.getDatabase(), writeOptions.getTable(),
+              blobNameWithIndex);
+          OutputStream byteOut = blobContainerClient.getBlobClient(blobNameWithIndex)
+              .getBlockBlobClient().getBlobOutputStream(true);
+          return new GZIPOutputStream(byteOut);
+        })) {
+      int currentBlobIndex = idx.get();
       for (IN value : bulkRequests) {
         int arity = this.aritySupplier.get();
         for (int i = 0; i < arity; i++) {
           Object fieldValue = this.extractFieldValueFunction.apply(value, i);
           if (fieldValue != null) {
-            gzip.write(StringEscapeUtils.escapeCsv(fieldValue.toString()).getBytes());
+            compressedBlob.write(StringEscapeUtils.escapeCsv(fieldValue.toString()).getBytes());
           }
           if (i < arity - 1) {
-            gzip.write(",".getBytes());
+            compressedBlob.write(",".getBytes());
           }
         }
-        gzip.write(System.lineSeparator().getBytes());
+        compressedBlob.write(System.lineSeparator().getBytes());
         recordsInBatch++;
+        if (currentBlobIndex != idx.get()) {
+          LOG.info("Switching to blob {} from blob {} to database {} and table {}", idx.get(),
+              currentBlobIndex, writeOptions.getDatabase(), writeOptions.getTable());
+          String blobNameWithIndex =
+              String.format("%s-%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
+                  this.writeOptions.getTable(), sourceId, currentBlobIndex);
+          if (!uploadAndPollStatus(uploadContainerSas, sourceId, blobNameWithIndex)) {
+            LOG.error(
+                "Writing to database {} and table {} failed. SourceId {} and BlobId {} failed",
+                writeOptions.getDatabase(), writeOptions.getTable(), sourceId, blobNameWithIndex);
+            return false;
+          }
+          currentBlobIndex = idx.get();
+        }
       }
-      LOG.debug("Flushed {} records to blob {} to ingest to database {} and table {} ",
-          recordsInBatch, blobName, writeOptions.getDatabase(), writeOptions.getTable());
       // If there are no records in the batch, we will mark this as done.
       if (recordsInBatch == 0) {
         return true;
@@ -244,32 +262,38 @@ public class KustoSinkCommon<IN> {
       isUploadSuccessful = false;
     }
     if (isUploadSuccessful) {
-      LOG.debug("Upload to blob successful , blob file {}.Performing ingestion", blobName);
-      IngestionResult ingestionResult =
-          KustoRetryUtil.getRetries(KustoRetryConfig.builder().build())
-              .executeSupplier(this.performIngestSupplier(uploadContainerSas, this.ingestionMapping,
-                  blobName, sourceId));
-      try {
-        final String pollResult =
-            this.pollForCompletion(blobName, sourceId.toString(), ingestionResult).get();
-        this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
-        return OperationStatus.Succeeded.name().equals(pollResult);
-      } catch (InterruptedException | ExecutionException e) {
-        LOG.error("Error while polling for completion of ingestion.", e);
-        throw new RuntimeException(e);
-      }
+      String finalBlobName = String.format("%s-%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
+          this.writeOptions.getTable(), sourceId, idx.get());
+      LOG.info(
+          "Flushing the final block of records to blob {} to ingest to database {} and table {} ",
+          finalBlobName, writeOptions.getDatabase(), writeOptions.getTable());
+      return uploadAndPollStatus(uploadContainerSas, sourceId, finalBlobName);
     }
     return false;
   }
 
-  // https://stackoverflow.com/questions/40251528/how-to-use-executorservice-to-poll-until-a-result-arrives
+  private boolean uploadAndPollStatus(ContainerSas uploadContainerSas, UUID sourceId,
+      String blobName) {
+    LOG.debug("Upload to blob successful , blob file {}.Performing ingestion", blobName);
+    IngestionResult ingestionResult =
+        KustoRetryUtil.getRetries(KustoRetryConfig.builder().build()).executeSupplier(this
+            .performIngestSupplier(uploadContainerSas, this.ingestionMapping, blobName, sourceId));
+    try {
+      final String pollResult =
+          this.pollForCompletion(blobName, sourceId.toString(), ingestionResult).get();
+      this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
+      return OperationStatus.Succeeded.name().equals(pollResult);
+    } catch (InterruptedException | ExecutionException e) {
+      LOG.error("Error while polling for completion of ingestion.", e);
+      throw new RuntimeException(e);
+    }
+  }
+
   protected CompletableFuture<String> pollForCompletion(String blobName, String sourceId,
       IngestionResult ingestionResult) {
     CompletableFuture<String> completionFuture = new CompletableFuture<>();
-    long timeToEndPoll = Instant.now(Clock.systemUTC()).plus(5, ChronoUnit.MINUTES).toEpochMilli(); // TODO:
-    // make
-    // this
-    // configurable
+    // TODO: Should this be configurable?
+    long timeToEndPoll = Instant.now(Clock.systemUTC()).plus(5, ChronoUnit.MINUTES).toEpochMilli();
     final ScheduledFuture<?> checkFuture = pollResultsExecutor.scheduleAtFixedRate(() -> {
       if (Instant.now(Clock.systemUTC()).toEpochMilli() > timeToEndPoll) {
         LOG.warn(

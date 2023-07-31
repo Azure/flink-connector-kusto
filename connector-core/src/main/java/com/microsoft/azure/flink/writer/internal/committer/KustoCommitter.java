@@ -8,6 +8,8 @@ import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 
 import com.microsoft.azure.flink.common.KustoClientUtil;
@@ -23,6 +25,8 @@ import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
 import com.microsoft.azure.kusto.ingest.source.StreamSourceInfo;
 
+@Internal
+@PublicEvolving
 public class KustoCommitter extends CheckpointCommitter {
   private static final long serialVersionUID = 1L;
   private final KustoConnectionOptions connectionOptions;
@@ -176,7 +180,7 @@ public class KustoCommitter extends CheckpointCommitter {
         KustoOperationResult checkpoints =
             queryClient.execute(this.kustoWriteOptions.getDatabase(), statement);
         if (checkpoints != null && checkpoints.getPrimaryResults() != null
-            && checkpoints.getPrimaryResults().getData().size() > 0) {
+            && !checkpoints.getPrimaryResults().getData().isEmpty()) {
           lastCommittedCheckpoint =
               Long.parseLong(checkpoints.getPrimaryResults().getData().get(0).toString());
           lastCommittedCheckpoints.put(subtaskIdx, lastCommittedCheckpoint);

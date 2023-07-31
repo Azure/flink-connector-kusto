@@ -334,3 +334,5 @@ target/*
 /connector-core/dependency-reduced-pom.xml
 /samples-java/dependency-reduced-pom.xml
 /dependency-reduced-pom.xml
+/connector-core/.cache/formatter-maven-cache.properties
+/samples-java/.cache/formatter-maven-cache.properties
