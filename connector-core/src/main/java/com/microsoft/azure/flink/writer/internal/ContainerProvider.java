@@ -88,7 +88,7 @@ public class ContainerProvider implements Serializable {
         KustoOperationResult queryResult = ingestClient.execute(GET_TEMP_STORAGE_CONTAINER);
         if (queryResult != null && queryResult.getPrimaryResults() != null) {
           queryResult.getPrimaryResults().getData().stream()
-              .filter(row -> row.size() > 0 && row.get(0) != null
+              .filter(row -> row!=null && !row.isEmpty() && row.get(0) != null
                   && StringUtils.isNotEmpty(row.get(0).toString()))
               .map(row -> row.get(0).toString().split("\\?")).forEach(parts -> {
                 LOG.info("Adding container post refresh {}", parts[0]);
