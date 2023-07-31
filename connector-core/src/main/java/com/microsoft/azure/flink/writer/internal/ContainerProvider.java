@@ -13,6 +13,8 @@ import java.util.Random;
 import java.util.function.Supplier;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +32,8 @@ import io.github.resilience4j.retry.Retry;
 import static com.microsoft.azure.flink.common.KustoRetryUtil.getRetries;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+@Internal
+@PublicEvolving
 public class ContainerProvider implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(ContainerProvider.class);
   private static final long serialVersionUID = 1L;

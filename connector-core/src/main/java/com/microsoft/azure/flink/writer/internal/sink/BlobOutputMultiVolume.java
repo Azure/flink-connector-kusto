@@ -3,6 +3,7 @@ package com.microsoft.azure.flink.writer.internal.sink;
 import java.io.IOException;
 import java.io.OutputStream;
 
+import org.apache.flink.annotation.Internal;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -10,6 +11,7 @@ import org.jetbrains.annotations.NotNull;
  * is specified by maxByteSizePerBlob. When the size of the current volume reaches
  * maxByteSizePerBlob, a new blob will be created.
  */
+@Internal
 public class BlobOutputMultiVolume extends OutputStream {
   private final long maxByteSizePerBlob;
   private long bytesInCurrentVolume = 0;

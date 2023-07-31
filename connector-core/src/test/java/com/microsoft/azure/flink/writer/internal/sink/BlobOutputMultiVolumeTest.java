@@ -14,8 +14,6 @@ import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
-
 public class BlobOutputMultiVolumeTest {
   private static final UUID RAND_UUID = UUID.randomUUID();
   private static final String TMP_DIR = System.getProperty("java.io.tmpdir");

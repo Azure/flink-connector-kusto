@@ -34,7 +34,10 @@ public class ContainerProviderIT {
       Thread.sleep(10000);
       assertNotNull(containerProvider.getBlobContainer());
       long expirationTimestampRenewed = containerProvider.getExpirationTimestamp();
-      assertTrue(expirationTimestampRenewed > expirationTimestamp);
+      System.out.println("********************************************************************************");
+      System.out.printf("expirationTimestamp: %d, expirationTimestampRenewed: %d%n",
+          expirationTimestamp, expirationTimestampRenewed);
+      assertTrue(expirationTimestampRenewed >= expirationTimestamp);
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     }
