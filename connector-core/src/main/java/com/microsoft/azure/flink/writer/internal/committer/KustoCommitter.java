@@ -180,7 +180,7 @@ public class KustoCommitter extends CheckpointCommitter {
         KustoOperationResult checkpoints =
             queryClient.execute(this.kustoWriteOptions.getDatabase(), statement);
         if (checkpoints != null && checkpoints.getPrimaryResults() != null
-            && checkpoints.getPrimaryResults().getData().size() > 0) {
+            && !checkpoints.getPrimaryResults().getData().isEmpty()) {
           lastCommittedCheckpoint =
               Long.parseLong(checkpoints.getPrimaryResults().getData().get(0).toString());
           lastCommittedCheckpoints.put(subtaskIdx, lastCommittedCheckpoint);
