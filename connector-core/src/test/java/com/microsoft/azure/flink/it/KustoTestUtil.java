@@ -13,7 +13,6 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import org.apache.flink.annotation.Internal;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.skyscreamer.jsonassert.Customization;
@@ -37,9 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.skyscreamer.jsonassert.JSONCompareMode.LENIENT;
 
-@Internal
 public class KustoTestUtil {
-
   private static final String KEY_COL = "vstr";
   private static final Logger LOG = LoggerFactory.getLogger(KustoTestUtil.class);
 

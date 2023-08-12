@@ -276,8 +276,9 @@ public class KustoSinkCommon<IN> {
         .executeSupplier(this.performIngestSupplier(uploadContainerWithSas, this.ingestionMapping,
             blobName, sourceId));
     try {
-      final String pollResult =
-          this.pollForCompletion(blobName, sourceId.toString(), ingestionResult).get();
+      final Long ingestionStart = Instant.now(Clock.systemUTC()).toEpochMilli();
+      final String pollResult = this
+          .pollForCompletion(blobName, sourceId.toString(), ingestionResult, ingestionStart).get();
       this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
       return OperationStatus.Succeeded.name().equals(pollResult);
     } catch (InterruptedException | ExecutionException e) {
@@ -287,7 +288,7 @@ public class KustoSinkCommon<IN> {
   }
 
   protected CompletableFuture<String> pollForCompletion(String blobName, String sourceId,
-      IngestionResult ingestionResult) {
+      IngestionResult ingestionResult, Long ingestionStart) {
     CompletableFuture<String> completionFuture = new CompletableFuture<>();
     // TODO: Should this be configurable?
     long timeToEndPoll = Instant.now(Clock.systemUTC()).plus(5, ChronoUnit.MINUTES).toEpochMilli();
@@ -300,7 +301,7 @@ public class KustoSinkCommon<IN> {
             "Polling for ingestion of source id: " + sourceId + " timed out."));
       }
       try {
-        LOG.info("Ingestion Status {} for blob {}",
+        LOG.debug("Ingestion Status {} for blob {}",
             ingestionResult.getIngestionStatusCollection().stream()
                 .map(is -> is.getIngestionSourceId() + ":" + is.getStatus())
                 .collect(Collectors.joining(",")),
@@ -311,6 +312,8 @@ public class KustoSinkCommon<IN> {
               if (ingestionStatus.status == OperationStatus.Succeeded) {
                 this.ingestSucceededCounter.inc();
                 completionFuture.complete(ingestionStatus.status.name());
+                LOG.info("Ingestion for blob {} took {} ms for state change to Succeeded", blobName,
+                    Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart);
               } else if (ingestionStatus.status == OperationStatus.Failed) {
                 this.ingestFailedCounter.inc();
                 String failureReason = String.format(
@@ -323,9 +326,11 @@ public class KustoSinkCommon<IN> {
                 // malformed ?
                 this.ingestPartiallyFailedCounter.inc();
                 String failureReason = String.format(
-                    "Ingestion failed for sourceId: %s with failure reason %s. "
-                        + "This will result in duplicates if the error was transient and was retried.Blob name: %s",
-                    sourceId, ingestionStatus.getFailureStatus(), blobName);
+                    "Ingestion partially succeeded for sourceId: %s with failure reason %s. "
+                        + "This will result in duplicates if the error was transient and was retried.Blob name: %s."
+                        + "Operation took %d ms",
+                    sourceId, ingestionStatus.getFailureStatus(), blobName,
+                    (Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart));
                 LOG.warn(failureReason);
                 completionFuture.complete(ingestionStatus.status.name());
               }

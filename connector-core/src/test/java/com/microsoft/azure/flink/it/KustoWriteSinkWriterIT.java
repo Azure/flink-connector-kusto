@@ -12,6 +12,8 @@ import org.apache.flink.api.java.tuple.Tuple8;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +30,7 @@ import static com.microsoft.azure.flink.it.ITSetup.getConnectorProperties;
 import static com.microsoft.azure.flink.it.ITSetup.getWriteOptions;
 import static org.junit.jupiter.api.Assertions.fail;
 
+@Execution(ExecutionMode.CONCURRENT)
 public class KustoWriteSinkWriterIT {
   private static final Logger LOG = LoggerFactory.getLogger(KustoWriteSinkWriterIT.class);
   private static Client engineClient;
@@ -35,14 +38,12 @@ public class KustoWriteSinkWriterIT {
   private static KustoConnectionOptions coordinates;
   private static KustoWriteOptions writeOptions;
   private static TestSinkInitContext sinkInitContext;
-
   private final TypeInformation<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> tuple8TypeInformation =
       TypeInformation.of(
           new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {});
 
   private final TypeSerializer<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> tuple8TypeSerializer =
       tuple8TypeInformation.createSerializer(new ExecutionConfig());
-
 
   @BeforeAll
   public static void setUp() {

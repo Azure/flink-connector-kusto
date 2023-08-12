@@ -22,6 +22,8 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +42,7 @@ import static com.microsoft.azure.flink.it.ITSetup.getConnectorProperties;
 import static com.microsoft.azure.flink.it.ITSetup.getWriteOptions;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
+@Execution(ExecutionMode.CONCURRENT)
 public class KustoGenericWriteAheadSinkIT {
   private static final Logger LOG = LoggerFactory.getLogger(KustoGenericWriteAheadSinkIT.class);
   private static Client engineClient;
