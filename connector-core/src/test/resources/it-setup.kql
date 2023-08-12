@@ -1,2 +1,2 @@
 .create-merge table TBL (vnum:int, vdec:decimal, vdate:datetime, vb:boolean, vreal:real, vstr:string, vlong:long,type:string)
-.alter table TBL policy ingestionbatching @'{"MaximumBatchingTimeSpan":"00:00:05", "MaximumNumberOfItems": 100, "MaximumRawDataSizeMB": 300}'
+.alter table TBL policy ingestionbatching @'{"MaximumBatchingTimeSpan":"00:00:01", "MaximumNumberOfItems": 10, "MaximumRawDataSizeMB": 300}'

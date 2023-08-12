@@ -13,7 +13,6 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import org.apache.flink.annotation.Internal;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
 import org.skyscreamer.jsonassert.Customization;
@@ -37,9 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.skyscreamer.jsonassert.JSONCompareMode.LENIENT;
 
-@Internal
 public class KustoTestUtil {
-
   private static final String KEY_COL = "vstr";
   private static final Logger LOG = LoggerFactory.getLogger(KustoTestUtil.class);
 
@@ -50,7 +47,7 @@ public class KustoTestUtil {
       Map<String, String> actualRecordsIngested =
           getActualRecordsIngested(engineClient, writeOptions, maxRecords, typeKey);
       actualRecordsIngested.keySet().parallelStream().forEach(key -> {
-        LOG.debug("Record queried: {} and expected record {} ", actualRecordsIngested.get(key),
+        LOG.trace("Record queried: {} and expected record {} ", actualRecordsIngested.get(key),
             expectedResults.get(key));
         try {
           JSONAssert.assertEquals(expectedResults.get(key), actualRecordsIngested.get(key),
@@ -105,7 +102,7 @@ public class KustoTestUtil {
         while (resultSet.next()) {
           String key = resultSet.getString(KEY_COL);
           String vResult = resultSet.getString("vresult");
-          LOG.debug("Record queried: {}", vResult);
+          LOG.trace("Record queried: {}", vResult);
           actualResults.put(key, vResult);
         }
         return actualResults;

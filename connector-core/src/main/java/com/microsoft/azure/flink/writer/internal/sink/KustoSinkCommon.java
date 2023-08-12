@@ -39,20 +39,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.azure.storage.blob.BlobContainerClient;
-import com.azure.storage.blob.BlobContainerClientBuilder;
 import com.microsoft.azure.flink.common.KustoClientUtil;
 import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.common.KustoRetryUtil;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 import com.microsoft.azure.flink.writer.internal.ContainerProvider;
-import com.microsoft.azure.flink.writer.internal.container.ContainerSas;
 import com.microsoft.azure.kusto.ingest.ColumnMapping;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionClientException;
 import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
+import com.microsoft.azure.kusto.ingest.resources.ContainerWithSas;
 import com.microsoft.azure.kusto.ingest.result.IngestionResult;
 import com.microsoft.azure.kusto.ingest.result.OperationStatus;
 import com.microsoft.azure.kusto.ingest.source.BlobSourceInfo;
@@ -145,12 +144,12 @@ public class KustoSinkCommon<IN> {
 
   @Contract(pure = true)
   @NotNull
-  protected Supplier<IngestionResult> performIngestSupplier(@NotNull ContainerSas container,
+  protected Supplier<IngestionResult> performIngestSupplier(@NotNull ContainerWithSas container,
       IngestionMapping ingestionMapping, @NotNull String blobName, UUID sourceId) {
     return () -> {
       try {
-        String blobUri = String.format("%s/%s?%s", container.getContainerUrl(), blobName,
-            container.getSasToken());
+        String blobUri = String.format("%s/%s?%s", container.getEndpointWithoutSas(), blobName,
+            container.getSas());
         BlobSourceInfo blobSourceInfo = new BlobSourceInfo(blobUri);
         LOG.trace("Ingesting into blob: {} with source id {}", blobUri, sourceId);
         blobSourceInfo.setSourceId(sourceId);
@@ -200,10 +199,8 @@ public class KustoSinkCommon<IN> {
     }
     ContainerProvider containerProvider =
         new ContainerProvider.Builder(this.connectionOptions).build();
-    ContainerSas uploadContainerSas = containerProvider.getBlobContainer();
-    String sasConnectionString = uploadContainerSas.toString();
-    BlobContainerClient blobContainerClient =
-        new BlobContainerClientBuilder().endpoint(sasConnectionString).buildClient();
+    ContainerWithSas uploadContainerWithSas = containerProvider.getBlobContainer();
+    BlobContainerClient blobContainerClient = uploadContainerWithSas.getContainer();
 
     UUID sourceId = UUID.randomUUID();
     boolean isUploadSuccessful = true;
@@ -243,7 +240,7 @@ public class KustoSinkCommon<IN> {
           String blobNameWithIndex =
               String.format("%s-%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
                   this.writeOptions.getTable(), sourceId, currentBlobIndex);
-          if (!uploadAndPollStatus(uploadContainerSas, sourceId, blobNameWithIndex)) {
+          if (!uploadAndPollStatus(uploadContainerWithSas, sourceId, blobNameWithIndex)) {
             LOG.error(
                 "Writing to database {} and table {} failed. SourceId {} and BlobId {} failed",
                 writeOptions.getDatabase(), writeOptions.getTable(), sourceId, blobNameWithIndex);
@@ -267,20 +264,21 @@ public class KustoSinkCommon<IN> {
       LOG.info(
           "Flushing the final block of records to blob {} to ingest to database {} and table {} ",
           finalBlobName, writeOptions.getDatabase(), writeOptions.getTable());
-      return uploadAndPollStatus(uploadContainerSas, sourceId, finalBlobName);
+      return uploadAndPollStatus(uploadContainerWithSas, sourceId, finalBlobName);
     }
     return false;
   }
 
-  private boolean uploadAndPollStatus(ContainerSas uploadContainerSas, UUID sourceId,
+  private boolean uploadAndPollStatus(ContainerWithSas uploadContainerWithSas, UUID sourceId,
       String blobName) {
-    LOG.debug("Upload to blob successful , blob file {}.Performing ingestion", blobName);
-    IngestionResult ingestionResult =
-        KustoRetryUtil.getRetries(KustoRetryConfig.builder().build()).executeSupplier(this
-            .performIngestSupplier(uploadContainerSas, this.ingestionMapping, blobName, sourceId));
+    LOG.info("Upload to blob successful , blob file {}.Performing ingestion", blobName);
+    IngestionResult ingestionResult = KustoRetryUtil.getRetries(KustoRetryConfig.builder().build())
+        .executeSupplier(this.performIngestSupplier(uploadContainerWithSas, this.ingestionMapping,
+            blobName, sourceId));
     try {
-      final String pollResult =
-          this.pollForCompletion(blobName, sourceId.toString(), ingestionResult).get();
+      final Long ingestionStart = Instant.now(Clock.systemUTC()).toEpochMilli();
+      final String pollResult = this
+          .pollForCompletion(blobName, sourceId.toString(), ingestionResult, ingestionStart).get();
       this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
       return OperationStatus.Succeeded.name().equals(pollResult);
     } catch (InterruptedException | ExecutionException e) {
@@ -290,7 +288,7 @@ public class KustoSinkCommon<IN> {
   }
 
   protected CompletableFuture<String> pollForCompletion(String blobName, String sourceId,
-      IngestionResult ingestionResult) {
+      IngestionResult ingestionResult, Long ingestionStart) {
     CompletableFuture<String> completionFuture = new CompletableFuture<>();
     // TODO: Should this be configurable?
     long timeToEndPoll = Instant.now(Clock.systemUTC()).plus(5, ChronoUnit.MINUTES).toEpochMilli();
@@ -314,6 +312,8 @@ public class KustoSinkCommon<IN> {
               if (ingestionStatus.status == OperationStatus.Succeeded) {
                 this.ingestSucceededCounter.inc();
                 completionFuture.complete(ingestionStatus.status.name());
+                LOG.info("Ingestion for blob {} took {} ms for state change to Succeeded", blobName,
+                    Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart);
               } else if (ingestionStatus.status == OperationStatus.Failed) {
                 this.ingestFailedCounter.inc();
                 String failureReason = String.format(
@@ -326,9 +326,11 @@ public class KustoSinkCommon<IN> {
                 // malformed ?
                 this.ingestPartiallyFailedCounter.inc();
                 String failureReason = String.format(
-                    "Ingestion failed for sourceId: %s with failure reason %s. "
-                        + "This will result in duplicates if the error was transient and was retried.Blob name: %s",
-                    sourceId, ingestionStatus.getFailureStatus(), blobName);
+                    "Ingestion partially succeeded for sourceId: %s with failure reason %s. "
+                        + "This will result in duplicates if the error was transient and was retried.Blob name: %s."
+                        + "Operation took %d ms",
+                    sourceId, ingestionStatus.getFailureStatus(), blobName,
+                    (Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart));
                 LOG.warn(failureReason);
                 completionFuture.complete(ingestionStatus.status.name());
               }

@@ -12,6 +12,7 @@ import com.microsoft.azure.kusto.data.ClientFactory;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestClientFactory;
+import com.microsoft.azure.kusto.ingest.QueuedIngestClient;
 
 public class KustoClientUtil {
   public static IngestClient createIngestClient(KustoConnectionOptions connectionOptions,
@@ -20,9 +21,9 @@ public class KustoClientUtil {
         .createClient(getIngestKcsb(connectionOptions, sourceClass, "ingest"));
   }
 
-  public static Client createDMClient(KustoConnectionOptions connectionOptions, String sourceClass)
-      throws URISyntaxException {
-    return ClientFactory.createClient(getIngestKcsb(connectionOptions, sourceClass, "dm"));
+  public static QueuedIngestClient createDMClient(KustoConnectionOptions connectionOptions,
+      String sourceClass) throws URISyntaxException {
+    return IngestClientFactory.createClient(getIngestKcsb(connectionOptions, sourceClass, "dm"));
   }
 
   public static IngestClient createMangedIngestClient(KustoConnectionOptions connectionOptions,

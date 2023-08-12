@@ -2,6 +2,10 @@ package com.microsoft.azure.flink.it;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
@@ -11,8 +15,10 @@ import static com.microsoft.azure.flink.it.ITSetup.getConnectorProperties;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Execution(ExecutionMode.CONCURRENT)
 public class ContainerProviderIT {
   private static ContainerProvider containerProvider;
+  private static final Logger LOG = LoggerFactory.getLogger(ContainerProviderIT.class);
 
   @BeforeAll
   public static void setup() {
@@ -34,9 +40,8 @@ public class ContainerProviderIT {
       Thread.sleep(10000);
       assertNotNull(containerProvider.getBlobContainer());
       long expirationTimestampRenewed = containerProvider.getExpirationTimestamp();
-      System.out.println("********************************************************************************");
-      System.out.printf("expirationTimestamp: %d, expirationTimestampRenewed: %d%n",
-          expirationTimestamp, expirationTimestampRenewed);
+      LOG.debug("expirationTimestamp: {}, expirationTimestampRenewed: {}", expirationTimestamp,
+          expirationTimestampRenewed);
       assertTrue(expirationTimestampRenewed >= expirationTimestamp);
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
