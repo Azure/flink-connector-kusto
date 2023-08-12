@@ -45,8 +45,8 @@ public class KustoSink<IN> implements Sink<IN> {
       return new KustoSinkWriter<>(connectionOptions, writeOptions, serializer, typeInfo, true,
           context);
     } catch (URISyntaxException e) {
-      LOG.error("Writing tuple sink to DB {} in cluster {} failed with URISyntaxException", writeOptions.getDatabase(),
-              connectionOptions.getClusterUrl());
+      LOG.error("Writing tuple sink to DB {} in cluster {} failed with URISyntaxException",
+          writeOptions.getDatabase(), connectionOptions.getClusterUrl());
       throw new RuntimeException(e);
     }
   }

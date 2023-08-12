@@ -32,7 +32,7 @@
     <jsonassert.version>1.5.1</jsonassert.version>
     <jsonsmart.version>2.4.11</jsonsmart.version>
     <junit5.version>5.8.1</junit5.version>
-    <kusto.sdk.version>5.0.0</kusto.sdk.version>
+    <kusto.sdk.version>5.0.1</kusto.sdk.version>
     <log4j.version>2.20.0</log4j.version>
     <mockito.version>5.3.1</mockito.version>
     <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>

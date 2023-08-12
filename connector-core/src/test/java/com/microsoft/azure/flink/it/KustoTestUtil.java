@@ -50,7 +50,7 @@ public class KustoTestUtil {
       Map<String, String> actualRecordsIngested =
           getActualRecordsIngested(engineClient, writeOptions, maxRecords, typeKey);
       actualRecordsIngested.keySet().parallelStream().forEach(key -> {
-        LOG.debug("Record queried: {} and expected record {} ", actualRecordsIngested.get(key),
+        LOG.trace("Record queried: {} and expected record {} ", actualRecordsIngested.get(key),
             expectedResults.get(key));
         try {
           JSONAssert.assertEquals(expectedResults.get(key), actualRecordsIngested.get(key),
@@ -105,7 +105,7 @@ public class KustoTestUtil {
         while (resultSet.next()) {
           String key = resultSet.getString(KEY_COL);
           String vResult = resultSet.getString("vresult");
-          LOG.debug("Record queried: {}", vResult);
+          LOG.trace("Record queried: {}", vResult);
           actualResults.put(key, vResult);
         }
         return actualResults;

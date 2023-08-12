@@ -2,6 +2,8 @@ package com.microsoft.azure.flink.it;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
@@ -13,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ContainerProviderIT {
   private static ContainerProvider containerProvider;
-
+  private static final Logger LOG = LoggerFactory.getLogger(ContainerProviderIT.class);
   @BeforeAll
   public static void setup() {
     KustoConnectionOptions validConnectionOptions = getConnectorProperties();
@@ -34,8 +36,7 @@ public class ContainerProviderIT {
       Thread.sleep(10000);
       assertNotNull(containerProvider.getBlobContainer());
       long expirationTimestampRenewed = containerProvider.getExpirationTimestamp();
-      System.out.println("********************************************************************************");
-      System.out.printf("expirationTimestamp: %d, expirationTimestampRenewed: %d%n",
+      LOG.debug("expirationTimestamp: {}, expirationTimestampRenewed: {}",
           expirationTimestamp, expirationTimestampRenewed);
       assertTrue(expirationTimestampRenewed >= expirationTimestamp);
     } catch (InterruptedException e) {
