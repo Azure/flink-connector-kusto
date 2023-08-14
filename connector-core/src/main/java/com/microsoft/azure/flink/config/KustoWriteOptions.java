@@ -42,10 +42,12 @@ public class KustoWriteOptions implements Serializable {
   private final List<String> ingestByTags;
   private final List<String> additionalTags;
   private final DeliveryGuarantee deliveryGuarantee;
+  private final boolean pollForIngestionStatus;
 
   private KustoWriteOptions(String database, String table, String ingestionMappingRef,
       boolean flushImmediately, long batchIntervalMs, long batchSize, long clientBatchSizeLimit,
-      List<String> ingestByTags, List<String> additionalTags, DeliveryGuarantee deliveryGuarantee) {
+      List<String> ingestByTags, List<String> additionalTags, DeliveryGuarantee deliveryGuarantee,
+      boolean pollForIngestionStatus) {
     this.database = checkNotNull(database);
     this.table = checkNotNull(table);
     this.ingestionMappingRef = ingestionMappingRef;
@@ -59,6 +61,7 @@ public class KustoWriteOptions implements Serializable {
     this.ingestByTags = ingestByTags;
     this.additionalTags = additionalTags;
     this.deliveryGuarantee = deliveryGuarantee;
+    this.pollForIngestionStatus = pollForIngestionStatus;
   }
 
   public List<String> getIngestByTags() {
@@ -101,6 +104,10 @@ public class KustoWriteOptions implements Serializable {
     return deliveryGuarantee;
   }
 
+  public boolean getPollForIngestionStatus() {
+    return pollForIngestionStatus;
+  }
+
 
   @Override
   public int hashCode() {
@@ -122,6 +129,7 @@ public class KustoWriteOptions implements Serializable {
     private long batchIntervalMs = -1L; // Not applicable by default
     private long batchSize = 1000L; // Or 1000 records
     private long clientBatchSizeLimit = 300 * 1024 * 1024; // Or 300 MB
+    private boolean pollForIngestionStatus = false; // Or 300 MB
     private DeliveryGuarantee deliveryGuarantee = DeliveryGuarantee.AT_LEAST_ONCE;
 
     private List<String> ingestByTags = Collections.emptyList();
@@ -231,6 +239,11 @@ public class KustoWriteOptions implements Serializable {
       return this;
     }
 
+    public KustoWriteOptions.Builder withPollForIngestionStatus(boolean pollForIngestionStatus) {
+      this.pollForIngestionStatus = pollForIngestionStatus;
+      return this;
+    }
+
     /**
      * Builds a {@link KustoWriteOptions} instance.
      *
@@ -243,7 +256,7 @@ public class KustoWriteOptions implements Serializable {
       }
       return new KustoWriteOptions(database, table, ingestionMappingRef, flushImmediately,
           batchIntervalMs, batchSize, clientBatchSizeLimit, ingestByTags, additionalTags,
-          deliveryGuarantee);
+          deliveryGuarantee, pollForIngestionStatus);
     }
   }
 }

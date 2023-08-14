@@ -77,6 +77,11 @@ public class KustoCommitter extends CheckpointCommitter {
                                                                                             // configurable
         this.table);
     try {
+      if (this.queryClient == null) {
+        this.queryClient = KustoClientUtil.createClient(this.connectionOptions,
+            KustoCommitter.class.getSimpleName());
+        LOG.info("Initialized queryClient in createResource and query client is null");
+      }
       queryClient.execute(this.kustoWriteOptions.getDatabase(), createCheckpointTable);
       queryClient.execute(this.kustoWriteOptions.getDatabase(), enableStreaming);
       queryClient.execute(this.kustoWriteOptions.getDatabase(), retentionPolicy);
@@ -86,8 +91,8 @@ public class KustoCommitter extends CheckpointCommitter {
           this.kustoWriteOptions.getDatabase(), e);
       throw e;
     }
-    LOG.debug("Created resources for KustoCommitter. Table {} in database {} took {} ms",
-        this.table, this.kustoWriteOptions.getDatabase(), Instant.now().toEpochMilli() - startTime);
+    LOG.info("Created resources for KustoCommitter. Table {} in database {} took {} ms", this.table,
+        this.kustoWriteOptions.getDatabase(), Instant.now().toEpochMilli() - startTime);
   }
 
   /**

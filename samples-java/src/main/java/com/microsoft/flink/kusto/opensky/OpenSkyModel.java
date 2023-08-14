@@ -1,4 +1,4 @@
-package com.microsoft.flink.kusto;
+package com.microsoft.flink.kusto.opensky;
 
 import java.io.Serializable;
 

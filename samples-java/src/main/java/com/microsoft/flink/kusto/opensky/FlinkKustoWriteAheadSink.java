@@ -1,4 +1,4 @@
-package com.microsoft.flink.kusto;
+package com.microsoft.flink.kusto.opensky;
 
 import java.io.FileNotFoundException;
 
@@ -12,8 +12,8 @@ import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 import com.microsoft.azure.kusto.KustoWriteSink;
 
-public class FlinkKusto {
-  protected static final Logger LOG = LoggerFactory.getLogger(FlinkKusto.class);
+public class FlinkKustoWriteAheadSink {
+  protected static final Logger LOG = LoggerFactory.getLogger(FlinkKustoWriteAheadSink.class);
 
   public static void main(String... args) {
     try {

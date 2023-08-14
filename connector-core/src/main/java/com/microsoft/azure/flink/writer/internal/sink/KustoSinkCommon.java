@@ -148,11 +148,11 @@ public class KustoSinkCommon<IN> {
       IngestionMapping ingestionMapping, @NotNull String blobName, UUID sourceId) {
     return () -> {
       try {
-        String blobUri = String.format("%s/%s?%s", container.getEndpointWithoutSas(), blobName,
+        String blobUri = String.format("%s/%s%s", container.getEndpointWithoutSas(), blobName,
             container.getSas());
         BlobSourceInfo blobSourceInfo = new BlobSourceInfo(blobUri);
-        LOG.trace("Ingesting into blob: {} with source id {}", blobUri, sourceId);
         blobSourceInfo.setSourceId(sourceId);
+        LOG.trace("Ingesting into blob: {} with source id {}", blobUri, sourceId);
         IngestionProperties ingestionProperties =
             new IngestionProperties(this.writeOptions.getDatabase(), this.writeOptions.getTable());
         ingestionProperties.setReportMethod(IngestionProperties.IngestionReportMethod.TABLE);
@@ -262,8 +262,8 @@ public class KustoSinkCommon<IN> {
       String finalBlobName = String.format("%s-%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
           this.writeOptions.getTable(), sourceId, idx.get());
       LOG.info(
-          "Flushing the final block of records to blob {} to ingest to database {} and table {} ",
-          finalBlobName, writeOptions.getDatabase(), writeOptions.getTable());
+          "Flushing the final block of records to blob {} to ingest to database {} and table {}.Records in batch {}",
+          finalBlobName, writeOptions.getDatabase(), writeOptions.getTable(), recordsInBatch);
       return uploadAndPollStatus(uploadContainerWithSas, sourceId, finalBlobName);
     }
     return false;
@@ -271,16 +271,23 @@ public class KustoSinkCommon<IN> {
 
   private boolean uploadAndPollStatus(ContainerWithSas uploadContainerWithSas, UUID sourceId,
       String blobName) {
-    LOG.info("Upload to blob successful , blob file {}.Performing ingestion", blobName);
+    LOG.debug("Upload to blob successful , blob file {}.Performing ingestion", blobName);
     IngestionResult ingestionResult = KustoRetryUtil.getRetries(KustoRetryConfig.builder().build())
         .executeSupplier(this.performIngestSupplier(uploadContainerWithSas, this.ingestionMapping,
             blobName, sourceId));
     try {
-      final Long ingestionStart = Instant.now(Clock.systemUTC()).toEpochMilli();
-      final String pollResult = this
-          .pollForCompletion(blobName, sourceId.toString(), ingestionResult, ingestionStart).get();
-      this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
-      return OperationStatus.Succeeded.name().equals(pollResult);
+      if (writeOptions.getPollForIngestionStatus()) {
+        final Long ingestionStart = Instant.now(Clock.systemUTC()).toEpochMilli();
+        final String pollResult =
+            this.pollForCompletion(blobName, sourceId.toString(), ingestionResult, ingestionStart)
+                .get();
+        this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
+        return OperationStatus.Succeeded.name().equals(pollResult);
+      } else {
+        LOG.info("Upload to blob successful , blob file {}. Not polling for status", blobName);
+        this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
+        return true;
+      }
     } catch (InterruptedException | ExecutionException e) {
       LOG.error("Error while polling for completion of ingestion.", e);
       throw new RuntimeException(e);

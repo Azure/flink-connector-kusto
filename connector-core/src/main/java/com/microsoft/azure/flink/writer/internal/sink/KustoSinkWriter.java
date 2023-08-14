@@ -92,7 +92,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
           writeOptions.getTable());
       return;
     }
-    LOG.debug("Ingesting to DB {} & table {} record count {}", writeOptions.getDatabase(),
+    LOG.info("Ingesting to DB {} & table {} record count {}", writeOptions.getDatabase(),
         writeOptions.getTable(), bulkRequests.size());
     if (this.kustoSinkCommon.ingest(this.bulkRequests)) {
       // All the ingestion has completed successfully here. Clear this batch of records

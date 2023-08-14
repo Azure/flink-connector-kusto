@@ -336,3 +336,5 @@ target/*
 /dependency-reduced-pom.xml
 /connector-core/.cache/formatter-maven-cache.properties
 /samples-java/.cache/formatter-maven-cache.properties
+/samples-java/src/main/resources/archetype-resources/
+/samples-java/src/main/resources/META-INF/maven/
