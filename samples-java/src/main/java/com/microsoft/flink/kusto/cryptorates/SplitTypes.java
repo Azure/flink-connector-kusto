@@ -13,11 +13,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class SplitTypes extends ProcessFunction<String, String> {
   private static final Logger LOG = LoggerFactory.getLogger(SplitTypes.class);
-
-  private final ObjectMapper mapper = new ObjectMapper();
   final OutputTag<Heartbeat> outputTagHeartbeat =
       new OutputTag<Heartbeat>("side-output-heartbeat") {};
   final OutputTag<Ticker> outputTagTicker = new OutputTag<Ticker>("side-output-ticker") {};
+  private final ObjectMapper mapper = new ObjectMapper();
 
   @Override
   public void processElement(String input, ProcessFunction<String, String>.Context context,

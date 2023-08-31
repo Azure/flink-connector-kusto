@@ -2,6 +2,7 @@ package com.microsoft.flink.kusto.cryptorates;
 
 import java.io.FileNotFoundException;
 
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -11,7 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
-import com.microsoft.azure.kusto.KustoWriteSink;
+import com.microsoft.azure.kusto.KustoWriteSinkV2;
 
 public class FlinkKustoV2Sink {
   protected static final Logger LOG = LoggerFactory.getLogger(FlinkKustoV2Sink.class);
@@ -29,30 +30,29 @@ public class FlinkKustoV2Sink {
           cryptoSocketSource.process(processSplitFunction).getSideOutput(outputTagHeartbeat);
       DataStream<Ticker> tickerDataStream =
           cryptoSocketSource.process(processSplitFunction).getSideOutput(outputTagTicker);
-
-      String appId = "";
-      String appKey = "";
-      String cluster = "";
-      String tenantId = "";
-      String database = "";
-
+      String appId = System.getenv("APP_ID");
+      String appKey = System.getenv("APP_KEY");
+      String cluster = System.getenv("CLUSTER_URL");
+      String tenantId = System.getenv("AZURE_TENANT_ID");
+      String database = System.getenv("E2E_DB");
       KustoConnectionOptions kustoConnectionOptions = KustoConnectionOptions.builder()
           .setAppId(appId).setAppKey(appKey).setTenantId(tenantId).setClusterUrl(cluster).build();
       String defaultTable = "CryptoRatesHeartbeatWithAck";
       KustoWriteOptions kustoWriteOptionsHeartbeat =
           KustoWriteOptions.builder().withDatabase(database).withTable(defaultTable)
               .withBatchSize(200).withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
-      KustoWriteSink.addSink(heartbeatDataStream).setConnectionOptions(kustoConnectionOptions)
-          .setWriteOptions(kustoWriteOptionsHeartbeat).build().setParallelism(2);
-
+      Sink<Heartbeat> sink = new KustoWriteSinkV2.KustoSinkBuilder<Heartbeat>()
+          .setWriteOptions(kustoWriteOptionsHeartbeat).setConnectionOptions(kustoConnectionOptions)
+          .build();
+      heartbeatDataStream.sinkTo(sink).setParallelism(2).name("KustoSink - Heartbeat");
       KustoWriteOptions kustoWriteOptionsTicker = KustoWriteOptions.builder().withDatabase(database)
           .withBatchSize(200).withTable("CryptoRatesTickerWithAck")
           .withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
 
-      KustoWriteSink.addSink(tickerDataStream).setConnectionOptions(kustoConnectionOptions)
-          .setWriteOptions(kustoWriteOptionsTicker).build().setParallelism(2);
-      // .name("CryptoRatesTicker").uid("CryptoRatesTicker")
-      // env.enableCheckpointing(500).execute("Flink Crypto Rates Demo");
+      Sink<Ticker> sinkTicker =
+          new KustoWriteSinkV2.KustoSinkBuilder<Ticker>().setWriteOptions(kustoWriteOptionsTicker)
+              .setConnectionOptions(kustoConnectionOptions).build();
+      tickerDataStream.sinkTo(sinkTicker).setParallelism(2).name("KustoSink - Ticker");
       env.executeAsync("Flink Crypto Rates Demo");
     } catch (FileNotFoundException e) {
       LOG.error("FileNotFoundException", e);

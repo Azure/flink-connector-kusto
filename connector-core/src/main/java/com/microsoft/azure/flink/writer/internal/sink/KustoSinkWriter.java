@@ -6,6 +6,10 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -15,9 +19,11 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +44,11 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
   private final Collector<IN> collector;
   private final Counter numRecordsOut;
   private boolean checkpointInProgress = false;
+  private transient volatile boolean closed = false;
+  private transient ScheduledExecutorService scheduler;
+  private transient ScheduledFuture<?> scheduledFuture;
+
+  private transient volatile Exception flushException;
 
   public KustoSinkWriter(KustoConnectionOptions connectionOptions, KustoWriteOptions writeOptions,
       @NotNull TypeSerializer<IN> serializer, @NotNull TypeInformation<IN> typeInformation,
@@ -55,10 +66,34 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
     // Bunch of metrics to send the data to monitor
     metricGroup.setCurrentSendTimeGauge(
         () -> this.kustoSinkCommon.ackTime - this.kustoSinkCommon.lastSendTime);
+
+    boolean flushOnlyOnCheckpoint =
+        writeOptions.getDeliveryGuarantee() == DeliveryGuarantee.AT_LEAST_ONCE;
+
+    if (!flushOnlyOnCheckpoint && writeOptions.getBatchIntervalMs() > 0) {
+      this.scheduler =
+          Executors.newScheduledThreadPool(1, new ExecutorThreadFactory("kusto-writer"));
+
+      this.scheduledFuture = this.scheduler.scheduleWithFixedDelay(() -> {
+        synchronized (KustoSinkWriter.this) {
+          if (!closed && isOverMaxBatchIntervalLimit()) {
+            try {
+              doBulkWrite();
+            } catch (Exception e) {
+              flushException = e;
+            }
+          }
+        }
+      }, writeOptions.getBatchIntervalMs(), writeOptions.getBatchIntervalMs(),
+          TimeUnit.MILLISECONDS);
+    }
+
+
   }
 
   @Override
   public void write(IN element, Context context) throws IOException, InterruptedException {
+    checkFlushException();
     // do not allow new bulk writes until all actions are flushed
     while (checkpointInProgress) {
       mailboxExecutor.yield();
@@ -72,6 +107,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
 
   @Override
   public void flush(boolean endOfInput) throws IOException {
+    checkFlushException();
     checkpointInProgress = true;
     while (!bulkRequests.isEmpty() && (flushOnCheckpoint || endOfInput)) {
       doBulkWrite();
@@ -80,12 +116,32 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
   }
 
   @Override
-  public void close() {
-    this.kustoSinkCommon.close();
+  public synchronized void close() throws Exception {
+    if (!closed) {
+      if (scheduledFuture != null) {
+        scheduledFuture.cancel(false);
+        scheduler.shutdown();
+      }
+
+      if (!bulkRequests.isEmpty()) {
+        try {
+          doBulkWrite();
+        } catch (Exception e) {
+          LOG.error("Writing records to Kusto failed when closing MongoWriter", e);
+          throw new IOException("Writing records to Kusto failed.", e);
+        } finally {
+          this.kustoSinkCommon.close();
+          closed = true;
+        }
+      } else {
+        this.kustoSinkCommon.close();
+        closed = true;
+      }
+    }
   }
 
   @VisibleForTesting
-  void doBulkWrite() {
+  void doBulkWrite() throws IOException {
     if (bulkRequests.isEmpty()) {
       // no records to write
       LOG.warn("No records to write to DB {} & table {} ", writeOptions.getDatabase(),
@@ -123,5 +179,11 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
           Instant.now(Clock.systemUTC()), this.kustoSinkCommon.lastSendTime, lastSentInterval);
     }
     return isOverIntervalLimit;
+  }
+
+  private void checkFlushException() {
+    if (flushException != null) {
+      throw new RuntimeException("Writing records to Kusto failed.", flushException);
+    }
   }
 }

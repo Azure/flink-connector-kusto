@@ -52,7 +52,8 @@ public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
   }
 
   @Override
-  protected boolean sendValues(@NotNull Iterable<IN> values, long checkpointId, long timestamp) {
+  protected boolean sendValues(@NotNull Iterable<IN> values, long checkpointId, long timestamp)
+      throws Exception {
     return this.kustoSinkCommon.ingest(values);
   }
 

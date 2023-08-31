@@ -189,7 +189,7 @@ public class KustoSinkCommon<IN> {
   }
 
 
-  boolean ingest(Iterable<IN> bulkRequests) {
+  boolean ingest(Iterable<IN> bulkRequests) throws IOException {
     // Get the blob
     // Write to the blob
     // have the ingest client send out request for ingestion
@@ -201,9 +201,7 @@ public class KustoSinkCommon<IN> {
         new ContainerProvider.Builder(this.connectionOptions).build();
     ContainerWithSas uploadContainerWithSas = containerProvider.getBlobContainer();
     BlobContainerClient blobContainerClient = uploadContainerWithSas.getContainer();
-
     UUID sourceId = UUID.randomUUID();
-    boolean isUploadSuccessful = true;
     // Is a side effect. Can be a bit more polished, it is easier to send the total metric in one
     // go.
     int recordsInBatch = 0;
@@ -256,17 +254,14 @@ public class KustoSinkCommon<IN> {
       this.recordsSent.inc(recordsInBatch);
     } catch (IOException e) {
       LOG.error("Error (IOException) while writing to blob.", e);
-      isUploadSuccessful = false;
+      throw e;
     }
-    if (isUploadSuccessful) {
-      String finalBlobName = String.format("%s-%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
-          this.writeOptions.getTable(), sourceId, idx.get());
-      LOG.info(
-          "Flushing the final block of records to blob {} to ingest to database {} and table {}.Records in batch {}",
-          finalBlobName, writeOptions.getDatabase(), writeOptions.getTable(), recordsInBatch);
-      return uploadAndPollStatus(uploadContainerWithSas, sourceId, finalBlobName);
-    }
-    return false;
+    String finalBlobName = String.format("%s-%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
+        this.writeOptions.getTable(), sourceId, idx.get());
+    LOG.info(
+        "Flushing the final block of records to blob {} to ingest to database {} and table {}.Records in batch {}",
+        finalBlobName, writeOptions.getDatabase(), writeOptions.getTable(), recordsInBatch);
+    return uploadAndPollStatus(uploadContainerWithSas, sourceId, finalBlobName);
   }
 
   private boolean uploadAndPollStatus(ContainerWithSas uploadContainerWithSas, UUID sourceId,
