@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -40,7 +41,7 @@ public class KustoTestUtil {
   private static final String KEY_COL = "vstr";
   private static final Logger LOG = LoggerFactory.getLogger(KustoTestUtil.class);
 
-  protected static void performAssertions(Client engineClient, KustoWriteOptions writeOptions,
+  public static void performAssertions(Client engineClient, KustoWriteOptions writeOptions,
       Map<String, String> expectedResults, int maxRecords, String typeKey) {
     try {
       // Perform the assertions here
@@ -113,12 +114,14 @@ public class KustoTestUtil {
     return retry.executeSupplier(recordSearchSupplier);
   }
 
-  protected static void createTables(Client engineClient, KustoWriteOptions writeOptions)
+  public static void createTables(Client engineClient, KustoWriteOptions writeOptions)
       throws Exception {
     URL kqlResource = KustoWriteSinkWriterIT.class.getClassLoader().getResource("it-setup.kql");
     assert kqlResource != null;
+    String expiryDate = Instant.now().plus(1, ChronoUnit.HOURS).toString();
     List<String> kqlsToExecute = Files.readAllLines(Paths.get(kqlResource.toURI())).stream()
-        .map(kql -> kql.replace("TBL", writeOptions.getTable())).collect(Collectors.toList());
+        .map(kql -> kql.replace("TBL", writeOptions.getTable()).replace("EXPIRY", expiryDate))
+        .collect(Collectors.toList());
     kqlsToExecute.forEach(kql -> {
       try {
         engineClient.execute(writeOptions.getDatabase(), kql);
@@ -129,8 +132,7 @@ public class KustoTestUtil {
     LOG.info("Created table {} and associated mappings", writeOptions.getTable());
   }
 
-  protected static void refreshDm(Client dmClient, KustoWriteOptions writeOptions)
-      throws Exception {
+  public static void refreshDm(Client dmClient, KustoWriteOptions writeOptions) throws Exception {
     URL kqlResource =
         KustoWriteSinkWriterIT.class.getClassLoader().getResource("policy-refresh.kql");
     assert kqlResource != null;

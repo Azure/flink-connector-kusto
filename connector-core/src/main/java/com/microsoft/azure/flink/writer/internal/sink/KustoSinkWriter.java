@@ -176,7 +176,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
       LOG.info(
           "OverMaxBatchIntervalLimit triggered last sent interval data at {} against lastSentTime {}."
               + "The last sent interval is {}",
-          Instant.now(Clock.systemUTC()), this.kustoSinkCommon.lastSendTime, lastSentInterval);
+          Instant.now(Clock.systemUTC()), this.kustoSinkCommon.lastSendTime, Instant.ofEpochMilli(lastSentInterval));
     }
     return isOverIntervalLimit;
   }

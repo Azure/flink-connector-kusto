@@ -1,13 +1,12 @@
 package com.microsoft.azure.kusto;
 
-import java.util.UUID;
-
-import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.connector.sink2.Sink;
-import org.apache.flink.streaming.runtime.operators.GenericWriteAheadSink;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo;
+import org.apache.flink.streaming.api.datastream.DataStream;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -15,30 +14,23 @@ import org.slf4j.LoggerFactory;
 
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
-import com.microsoft.azure.flink.writer.internal.committer.KustoCommitter;
-import com.microsoft.azure.flink.writer.internal.sink.KustoGenericWriteAheadSink;
 import com.microsoft.azure.flink.writer.internal.sink.KustoSink;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-public class KustoWriteSinkV2<IN> {
+public class KustoWriteSinkV2 {
   protected static final Logger LOG = LoggerFactory.getLogger(KustoWriteSinkV2.class);
-  protected TypeSerializer<IN> serializer;
-  protected TypeInformation<IN> typeInfo;
   protected KustoConnectionOptions connectionOptions;
   protected KustoWriteOptions writeOptions;
 
-  private KustoWriteSinkV2() {
-    this.typeInfo = TypeInformation.of(new TypeHint<IN>() {});
-    this.serializer = this.typeInfo.createSerializer(new ExecutionConfig());;
-  }
+  private KustoWriteSinkV2() {}
 
   @Contract(" -> new")
-  public static <IN> @NotNull KustoWriteSinkV2<IN> builder() {
-    return new KustoWriteSinkV2<>();
+  public static @NotNull KustoWriteSinkV2 builder() {
+    return new KustoWriteSinkV2();
   }
 
-  public KustoWriteSinkV2<IN> setConnectionOptions(KustoConnectionOptions connectionOptions) {
+  public KustoWriteSinkV2 setConnectionOptions(KustoConnectionOptions connectionOptions) {
     if (connectionOptions == null) {
       throw new IllegalArgumentException(
           "Connection options cannot be null. Please use KustoConnectionOptions.Builder() to create one. ");
@@ -47,7 +39,7 @@ public class KustoWriteSinkV2<IN> {
     return this;
   }
 
-  public KustoWriteSinkV2<IN> setWriteOptions(KustoWriteOptions writeOptions) {
+  public KustoWriteSinkV2 setWriteOptions(KustoWriteOptions writeOptions) {
     if (writeOptions == null) {
       throw new IllegalArgumentException(
           "Connection options cannot be null. Please use KustoConnectionOptions.Builder() to create one.");
@@ -59,25 +51,47 @@ public class KustoWriteSinkV2<IN> {
   protected void sanityCheck() {
     checkNotNull(this.connectionOptions, "Kusto connection options must be supplied.");
     checkNotNull(this.writeOptions, "Kusto write options must be supplied.");
-    checkNotNull(this.serializer, "Kusto serializer must not be null.");
-    checkNotNull(this.typeInfo, "Kusto type information must not be null.");
   }
 
-  public Sink<IN> build() throws Exception {
-    sanityCheck();
-    LOG.info("Building KustoSink with WriteOptions: {} and ConnectionOptions {}", this.writeOptions.toString(),
-        this.connectionOptions.toString());
-    return new KustoSink<>(this.connectionOptions, this.writeOptions, this.serializer,
-        this.typeInfo);
+  public <IN> void build(@NotNull DataStream<IN> dataStream) throws Exception {
+    build(dataStream, 1);
   }
 
-  public GenericWriteAheadSink<IN> buildWriteAheadSink() throws Exception {
+  public <IN> void build(@NotNull DataStream<IN> dataStream, int parallelism) throws Exception {
+    TypeInformation<IN> typeInfo = dataStream.getType();
+    TypeSerializer<IN> serializer =
+        typeInfo.createSerializer(dataStream.getExecutionEnvironment().getConfig());
+    boolean isSupportedType = typeInfo instanceof TupleTypeInfo || typeInfo instanceof RowTypeInfo
+        || typeInfo instanceof CaseClassTypeInfo || typeInfo instanceof PojoTypeInfo;
+    if (!isSupportedType) {
+      throw new IllegalArgumentException(
+          "No support for the type of the given DataStream: " + dataStream.getType());
+    }
     sanityCheck();
-    LOG.info("Building GenericWriteAheadSink with WriteOptions: {} and ConnectionOptions {}", this.writeOptions.toString(),
-            this.connectionOptions.toString());
-    return new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
-        new KustoCommitter(this.connectionOptions, this.writeOptions), this.serializer,
-        this.typeInfo, UUID.randomUUID().toString());
+    LOG.info("Building KustoSink with WriteOptions: {} and ConnectionOptions {}",
+        this.writeOptions.toString(), this.connectionOptions.toString());
+    dataStream
+        .sinkTo(new KustoSink<>(this.connectionOptions, this.writeOptions, serializer, typeInfo))
+        .setParallelism(parallelism);
+  }
+
+  public <IN> void buildWriteAheadSink(DataStream<IN> dataStream) throws Exception {
+    TypeInformation<IN> typeInfo = dataStream.getType();
+    TypeSerializer<IN> serializer =
+        typeInfo.createSerializer(dataStream.getExecutionEnvironment().getConfig());
+    boolean isSupportedType = typeInfo instanceof TupleTypeInfo || typeInfo instanceof RowTypeInfo
+        || typeInfo instanceof CaseClassTypeInfo || typeInfo instanceof PojoTypeInfo;
+    if (!isSupportedType) {
+      throw new IllegalArgumentException(
+          "No support for the type of the given DataStream: " + dataStream.getType());
+    }
+    sanityCheck();
+    LOG.info("Building GenericWriteAheadSink with WriteOptions: {} and ConnectionOptions {}",
+        this.writeOptions.toString(), this.connectionOptions.toString());
+    // dataStream.addSink(new KustoGenericWriteAheadSink<>(this.connectionOptions,
+    // this.writeOptions,
+    // new KustoCommitter(this.connectionOptions, this.writeOptions), serializer, typeInfo,
+    // UUID.randomUUID().toString()));
   }
 }
 

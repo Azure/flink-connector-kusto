@@ -2,7 +2,6 @@ package com.microsoft.flink.kusto.cryptorates;
 
 import java.io.FileNotFoundException;
 
-import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -16,6 +15,7 @@ import com.microsoft.azure.kusto.KustoWriteSinkV2;
 
 public class FlinkKustoV2Sink {
   protected static final Logger LOG = LoggerFactory.getLogger(FlinkKustoV2Sink.class);
+
   public static void main(String... args) {
     try {
       final OutputTag<Heartbeat> outputTagHeartbeat =
@@ -40,16 +40,13 @@ public class FlinkKustoV2Sink {
       KustoWriteOptions kustoWriteOptionsHeartbeat =
           KustoWriteOptions.builder().withDatabase(database).withTable(defaultTable)
               .withBatchSize(200).withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
-      Sink<Heartbeat> sink = KustoWriteSinkV2.<Heartbeat>builder()
-              .setWriteOptions(kustoWriteOptionsHeartbeat).setConnectionOptions(kustoConnectionOptions).build();
-      heartbeatDataStream.sinkTo(sink).setParallelism(2).name("KustoSink - Heartbeat");
+      KustoWriteSinkV2.builder().setWriteOptions(kustoWriteOptionsHeartbeat)
+          .setConnectionOptions(kustoConnectionOptions).build(heartbeatDataStream);
       KustoWriteOptions kustoWriteOptionsTicker = KustoWriteOptions.builder().withDatabase(database)
           .withBatchSize(200).withTable("CryptoRatesTickerWithAck")
           .withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
-      Sink<Ticker> sinkTicker =
-          KustoWriteSinkV2.<Ticker>builder().setWriteOptions(kustoWriteOptionsTicker)
-              .setConnectionOptions(kustoConnectionOptions).build();
-      tickerDataStream.sinkTo(sinkTicker).setParallelism(2).name("KustoSink - Ticker");
+      KustoWriteSinkV2.builder().setWriteOptions(kustoWriteOptionsTicker)
+          .setConnectionOptions(kustoConnectionOptions).build(tickerDataStream);
       env.executeAsync("Flink Crypto Rates Demo");
     } catch (FileNotFoundException e) {
       LOG.error("FileNotFoundException", e);

@@ -7,6 +7,7 @@ import java.util.Random;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple8;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Internal
@@ -104,8 +105,12 @@ public class TupleTestObject {
 
   public TupleTestObject() {}
 
-  public String toJsonString() throws Exception {
-    return MAPPER.writeValueAsString(this);
+  public String toJsonString() {
+    try {
+      return MAPPER.writeValueAsString(this);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public Tuple8<Integer, Double, String, Boolean, Double, String, Long, String> toTuple() {
