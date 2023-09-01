@@ -39,7 +39,6 @@ public class KustoConnectionOptions implements Serializable {
     return ingestUrl;
   }
 
-
   public String getAppId() {
     return appId;
   }
@@ -75,6 +74,13 @@ public class KustoConnectionOptions implements Serializable {
   @Override
   public int hashCode() {
     return Objects.hash(clusterUrl);
+  }
+
+  @Override
+  public String toString() {
+    return "KustoConnectionOptions{" + "clusterUrl='" + clusterUrl + '\'' + ", ingestUrl='"
+        + ingestUrl + '\'' + ", appId='" + appId + '\'' + ", isManagedIdentity='"
+        + isManagedIdentity + '\'' + ", managedIdentityAppId='" + managedIdentityAppId + '\'' + '}';
   }
 
   public static Builder builder() {

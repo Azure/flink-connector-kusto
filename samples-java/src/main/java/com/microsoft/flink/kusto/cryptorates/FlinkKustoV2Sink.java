@@ -16,7 +16,6 @@ import com.microsoft.azure.kusto.KustoWriteSinkV2;
 
 public class FlinkKustoV2Sink {
   protected static final Logger LOG = LoggerFactory.getLogger(FlinkKustoV2Sink.class);
-
   public static void main(String... args) {
     try {
       final OutputTag<Heartbeat> outputTagHeartbeat =
@@ -41,16 +40,14 @@ public class FlinkKustoV2Sink {
       KustoWriteOptions kustoWriteOptionsHeartbeat =
           KustoWriteOptions.builder().withDatabase(database).withTable(defaultTable)
               .withBatchSize(200).withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
-      Sink<Heartbeat> sink = new KustoWriteSinkV2.KustoSinkBuilder<Heartbeat>()
-          .setWriteOptions(kustoWriteOptionsHeartbeat).setConnectionOptions(kustoConnectionOptions)
-          .build();
+      Sink<Heartbeat> sink = KustoWriteSinkV2.<Heartbeat>builder()
+              .setWriteOptions(kustoWriteOptionsHeartbeat).setConnectionOptions(kustoConnectionOptions).build();
       heartbeatDataStream.sinkTo(sink).setParallelism(2).name("KustoSink - Heartbeat");
       KustoWriteOptions kustoWriteOptionsTicker = KustoWriteOptions.builder().withDatabase(database)
           .withBatchSize(200).withTable("CryptoRatesTickerWithAck")
           .withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
-
       Sink<Ticker> sinkTicker =
-          new KustoWriteSinkV2.KustoSinkBuilder<Ticker>().setWriteOptions(kustoWriteOptionsTicker)
+          KustoWriteSinkV2.<Ticker>builder().setWriteOptions(kustoWriteOptionsTicker)
               .setConnectionOptions(kustoConnectionOptions).build();
       tickerDataStream.sinkTo(sinkTicker).setParallelism(2).name("KustoSink - Ticker");
       env.executeAsync("Flink Crypto Rates Demo");

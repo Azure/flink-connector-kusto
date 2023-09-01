@@ -8,15 +8,13 @@ import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.junit.ArchTests;
 
 /** Architecture tests for test code. */
-@AnalyzeClasses(
-        packages = "com.microsoft.azure",
-        importOptions = {
-                ImportOption.OnlyIncludeTests.class,
-                ImportOptions.ExcludeScalaImportOption.class,
-                ImportOptions.ExcludeShadedImportOption.class
-        })
+@AnalyzeClasses(packages = "com.microsoft.azure",
+    importOptions = {ImportOption.OnlyIncludeTests.class,
+        ImportOptions.ExcludeScalaImportOption.class,
+        ImportOptions.ExcludeShadedImportOption.class})
 public class TestKustoFlinkArchitectureCodeTest {
 
-    @ArchTest
-    public static final ArchTests COMMON_TESTS = ArchTests.in(TestKustoFlinkArchitectureCodeTest.class);
+  @ArchTest
+  public static final ArchTests COMMON_TESTS =
+      ArchTests.in(TestKustoFlinkArchitectureCodeTest.class);
 }

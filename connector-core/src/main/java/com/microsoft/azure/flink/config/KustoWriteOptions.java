@@ -119,6 +119,16 @@ public class KustoWriteOptions implements Serializable {
     return new KustoWriteOptions.Builder();
   }
 
+  @Override
+  public String toString() {
+    return "KustoWriteOptions{" + "database='" + database + '\'' + ", table='" + table + '\''
+        + ", ingestionMappingRef='" + ingestionMappingRef + '\'' + ", flushImmediately="
+        + flushImmediately + ", batchIntervalMs=" + batchIntervalMs + ", batchSize=" + batchSize
+        + ", clientBatchSizeLimit=" + clientBatchSizeLimit + ", ingestByTags=" + ingestByTags
+        + ", additionalTags=" + additionalTags + ", deliveryGuarantee=" + deliveryGuarantee
+        + ", pollForIngestionStatus=" + pollForIngestionStatus + '}';
+  }
+
   /** Builder for {@link KustoWriteOptions}. */
   @PublicEvolving
   public static class Builder {
