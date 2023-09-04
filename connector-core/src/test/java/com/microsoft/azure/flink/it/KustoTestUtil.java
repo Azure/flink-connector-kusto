@@ -51,9 +51,12 @@ public class KustoTestUtil {
         LOG.trace("Record queried: {} and expected record {} ", actualRecordsIngested.get(key),
             expectedResults.get(key));
         try {
+          LOG.error("==============================================================================================");
+          LOG.error("Expected {} and got {}",expectedResults.get(key),actualRecordsIngested.get(key));
+          LOG.error("==============================================================================================");
           JSONAssert.assertEquals(expectedResults.get(key), actualRecordsIngested.get(key),
               new CustomComparator(LENIENT,
-                  // there are sometimes round off errors in the double values but they are close
+                  // there are sometimes round off errors in the double values, but they are close
                   // enough to 8 precision
                   new Customization("vdec",
                       (vdec1,
@@ -83,7 +86,7 @@ public class KustoTestUtil {
         writeOptions.getTable(), typeKey, KEY_COL);
     Predicate<Object> predicate = (results) -> {
       if (results != null) {
-        LOG.debug("Retrieved records count {}", ((Map<?, ?>) results).size());
+        LOG.warn("Retrieved records count {}", ((Map<?, ?>) results).size());
       }
       return results == null || ((Map<?, ?>) results).isEmpty()
           || ((Map<?, ?>) results).size() < maxRecords;
@@ -96,7 +99,7 @@ public class KustoTestUtil {
     Retry retry = registry.retry("ingestRecordService", config);
     Supplier<Map<String, String>> recordSearchSupplier = () -> {
       try {
-        LOG.debug("Executing query {} ", query);
+        LOG.warn("Executing query {} ", query);
         KustoResultSetTable resultSet =
             engineClient.execute(writeOptions.getDatabase(), query).getPrimaryResults();
         Map<String, String> actualResults = new HashMap<>();

@@ -140,11 +140,10 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
     }
   }
 
-  @VisibleForTesting
   void doBulkWrite() throws IOException {
     if (bulkRequests.isEmpty()) {
       // no records to write
-      LOG.warn("No records to write to DB {} & table {} ", writeOptions.getDatabase(),
+      LOG.debug("No records to write to DB {} & table {} ", writeOptions.getDatabase(),
           writeOptions.getTable());
       return;
     }
@@ -160,7 +159,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
     long bulkActions = writeOptions.getBatchSize();
     boolean isOverMaxBatchSizeLimit = bulkActions != -1 && this.bulkRequests.size() >= bulkActions;
     if (isOverMaxBatchSizeLimit) {
-      LOG.info("OverMaxBatchSizeLimit triggered at time {} with batch size {}.",
+      LOG.debug("OverMaxBatchSizeLimit triggered at time {} with batch size {}.",
           Instant.now(Clock.systemUTC()), this.bulkRequests.size());
     }
     return isOverMaxBatchSizeLimit;
@@ -173,10 +172,10 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
     boolean isOverIntervalLimit = this.kustoSinkCommon.lastSendTime > 0 && bulkFlushInterval != -1
         && lastSentInterval >= bulkFlushInterval;
     if (isOverIntervalLimit) {
-      LOG.info(
+      LOG.debug(
           "OverMaxBatchIntervalLimit triggered last sent interval data at {} against lastSentTime {}."
               + "The last sent interval is {}",
-          Instant.now(Clock.systemUTC()), this.kustoSinkCommon.lastSendTime, Instant.ofEpochMilli(lastSentInterval));
+          Instant.now(Clock.systemUTC()), Instant.ofEpochMilli(this.kustoSinkCommon.lastSendTime), lastSentInterval);
     }
     return isOverIntervalLimit;
   }

@@ -258,7 +258,7 @@ public class KustoSinkCommon<IN> {
     }
     String finalBlobName = String.format("%s-%s-%s-%s.csv.gz", this.writeOptions.getDatabase(),
         this.writeOptions.getTable(), sourceId, idx.get());
-    LOG.info(
+    LOG.debug(
         "Flushing the final block of records to blob {} to ingest to database {} and table {}.Records in batch {}",
         finalBlobName, writeOptions.getDatabase(), writeOptions.getTable(), recordsInBatch);
     return uploadAndPollStatus(uploadContainerWithSas, sourceId, finalBlobName);
@@ -279,7 +279,7 @@ public class KustoSinkCommon<IN> {
         this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
         return OperationStatus.Succeeded.name().equals(pollResult);
       } else {
-        LOG.info("Upload to blob successful , blob file {}. Not polling for status", blobName);
+        LOG.debug("Upload to blob successful , blob file {}. Not polling for status", blobName);
         this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
         return true;
       }

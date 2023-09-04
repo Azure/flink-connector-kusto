@@ -78,8 +78,8 @@ public class FlinkKustoSinkIT {
   }
 
   @ParameterizedTest
-  @EnumSource(value = DeliveryGuarantee.class, mode = EnumSource.Mode.EXCLUDE,
-      names = "EXACTLY_ONCE")
+  @EnumSource(value = DeliveryGuarantee.class, mode = EnumSource.Mode.INCLUDE,
+      names = "AT_LEAST_ONCE")
   void testWriteToKustoWithExactlyOnce(DeliveryGuarantee deliveryGuarantee) throws Exception {
     final String typeKey = "sink-with-delivery-" + deliveryGuarantee;
     KustoWriteOptions kustoWriteOptions = getWriteOptions(100, 30, deliveryGuarantee);
@@ -105,7 +105,7 @@ public class FlinkKustoSinkIT {
     // expected results
     Map<String, String> expectedResults = new HashMap<>();
     for (int i = 0; i < maxRecords; i++) {
-      expectedResults.put(String.valueOf(i), new TupleTestObject(i, typeKey).toJsonString());
+      expectedResults.put(String.format("Flink,,;@#-%s", i), new TupleTestObject(i, typeKey).toJsonString());
     }
     KustoTestUtil.performAssertions(engineClient, kustoWriteOptions, expectedResults, maxRecords,
         typeKey);
