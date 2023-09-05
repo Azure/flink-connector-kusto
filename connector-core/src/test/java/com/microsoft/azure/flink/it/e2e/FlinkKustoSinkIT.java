@@ -2,9 +2,10 @@ package com.microsoft.azure.flink.it.e2e;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -78,35 +79,33 @@ public class FlinkKustoSinkIT {
   }
 
   @ParameterizedTest
-  @EnumSource(value = DeliveryGuarantee.class, mode = EnumSource.Mode.INCLUDE,
-      names = "AT_LEAST_ONCE")
-  void testWriteToKustoWithExactlyOnce(DeliveryGuarantee deliveryGuarantee) throws Exception {
+  @EnumSource(value = DeliveryGuarantee.class)
+  void testWriteToKustoWithDeliverySemantics(DeliveryGuarantee deliveryGuarantee) throws Exception {
     final String typeKey = "sink-with-delivery-" + deliveryGuarantee;
-    KustoWriteOptions kustoWriteOptions = getWriteOptions(100, 30, deliveryGuarantee);
+    KustoWriteOptions kustoWriteOptions = getWriteOptions(1000, 100, deliveryGuarantee);
     // create the tables
     KustoTestUtil.createTables(engineClient, kustoWriteOptions);
     KustoTestUtil.refreshDm(dmClient, kustoWriteOptions);
+    // Generate a few records to send
     int maxRecords = 221;
+    Map<String, TupleTestObject> dataToSend = new HashMap<>();
+    for (int i = 0; i < maxRecords; i++) {
+      TupleTestObject record = new TupleTestObject(i, typeKey);
+      dataToSend.put(record.getVstr(), record);
+    }
     // Run the flink job
     final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     env.enableCheckpointing(100L);
     env.setRestartStrategy(RestartStrategies.noRestart());
     // send these records through the stream
     DataStream<TupleTestObject> stream =
-        env.fromSequence(1, maxRecords).map(new RichMapFunction<Long, TupleTestObject>() {
-          @Override
-          public TupleTestObject map(Long x) {
-            return new TupleTestObject(x.intValue(), typeKey);
-          }
-        });
+        env.fromCollection(dataToSend.values());
     KustoWriteSinkV2.builder().setWriteOptions(kustoWriteOptions).setConnectionOptions(coordinates)
         .build(stream, 2);
     env.execute();
     // expected results
-    Map<String, String> expectedResults = new HashMap<>();
-    for (int i = 0; i < maxRecords; i++) {
-      expectedResults.put(String.format("Flink,,;@#-%s", i), new TupleTestObject(i, typeKey).toJsonString());
-    }
+    Map<String,String> expectedResults = dataToSend.keySet().parallelStream().
+            collect(Collectors.toMap(Function.identity(),k->dataToSend.get(k).toJsonString()));
     KustoTestUtil.performAssertions(engineClient, kustoWriteOptions, expectedResults, maxRecords,
         typeKey);
     // Clean up the tables

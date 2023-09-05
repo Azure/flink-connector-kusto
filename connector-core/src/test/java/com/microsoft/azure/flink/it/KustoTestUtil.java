@@ -16,6 +16,8 @@ import java.util.stream.Collectors;
 
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONException;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.skyscreamer.jsonassert.Customization;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.comparator.CustomComparator;
@@ -37,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.skyscreamer.jsonassert.JSONCompareMode.LENIENT;
 
+@Execution(ExecutionMode.CONCURRENT)
 public class KustoTestUtil {
   private static final String KEY_COL = "vstr";
   private static final Logger LOG = LoggerFactory.getLogger(KustoTestUtil.class);
@@ -51,9 +54,9 @@ public class KustoTestUtil {
         LOG.trace("Record queried: {} and expected record {} ", actualRecordsIngested.get(key),
             expectedResults.get(key));
         try {
-          LOG.error("==============================================================================================");
-          LOG.error("Expected {} and got {}",expectedResults.get(key),actualRecordsIngested.get(key));
-          LOG.error("==============================================================================================");
+          LOG.trace("==============================================================================================");
+          LOG.trace("Expected {} and got {}",expectedResults.get(key),actualRecordsIngested.get(key));
+          LOG.trace("==============================================================================================");
           JSONAssert.assertEquals(expectedResults.get(key), actualRecordsIngested.get(key),
               new CustomComparator(LENIENT,
                   // there are sometimes round off errors in the double values, but they are close
@@ -74,7 +77,7 @@ public class KustoTestUtil {
       });
       assertEquals(maxRecords, actualRecordsIngested.size());
     } catch (Exception e) {
-      LOG.error("Failed to create KustoGenericWriteAheadSink", e);
+      LOG.error("Failed performing assertions in KustoSink", e);
       fail(e);
     }
   }
