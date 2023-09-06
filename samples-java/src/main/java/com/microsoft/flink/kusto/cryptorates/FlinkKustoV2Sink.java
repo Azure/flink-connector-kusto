@@ -36,14 +36,14 @@ public class FlinkKustoV2Sink {
       String database = System.getenv("FLINK_DB");
       KustoConnectionOptions kustoConnectionOptions = KustoConnectionOptions.builder()
           .setAppId(appId).setAppKey(appKey).setTenantId(tenantId).setClusterUrl(cluster).build();
-      String defaultTable = "CryptoRatesHeartbeatWithAck";
+      String defaultTable = "CryptoRatesHeartbeat";
       KustoWriteOptions kustoWriteOptionsHeartbeat =
           KustoWriteOptions.builder().withDatabase(database).withTable(defaultTable)
               .withBatchSize(200).withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
       KustoWriteSink.builder().setWriteOptions(kustoWriteOptionsHeartbeat)
           .setConnectionOptions(kustoConnectionOptions).build(heartbeatDataStream,2);
       KustoWriteOptions kustoWriteOptionsTicker = KustoWriteOptions.builder().withDatabase(database)
-          .withBatchSize(100).withTable("CryptoRatesTickerWithAck")
+          .withBatchSize(100).withTable("CryptoRatesTicker")
           .withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
       KustoWriteSink.builder().setWriteOptions(kustoWriteOptionsTicker)
           .setConnectionOptions(kustoConnectionOptions).build(tickerDataStream,2);
