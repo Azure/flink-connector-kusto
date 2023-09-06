@@ -316,6 +316,13 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
         <version>${mvn.failsafe.plugin.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>me.fabriciorby</groupId>
+            <artifactId>maven-surefire-junit5-tree-reporter</artifactId>
+            <version>0.1.0</version>
+          </dependency>
+        </dependencies>
         <executions>
           <execution>
             <goals>
@@ -323,6 +330,9 @@
               <goal>verify</goal>
             </goals>
             <configuration>
+              <forkCount>3</forkCount>
+              <reuseForks>true</reuseForks>
+              <argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>
               <includes>
                 <include>**/*IT.java</include>
               </includes>

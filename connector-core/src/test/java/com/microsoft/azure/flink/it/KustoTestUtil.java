@@ -54,9 +54,12 @@ public class KustoTestUtil {
         LOG.trace("Record queried: {} and expected record {} ", actualRecordsIngested.get(key),
             expectedResults.get(key));
         try {
-          LOG.trace("==============================================================================================");
-          LOG.trace("Expected {} and got {}",expectedResults.get(key),actualRecordsIngested.get(key));
-          LOG.trace("==============================================================================================");
+          LOG.trace(
+              "==============================================================================================");
+          LOG.trace("Expected {} and got {}", expectedResults.get(key),
+              actualRecordsIngested.get(key));
+          LOG.trace(
+              "==============================================================================================");
           JSONAssert.assertEquals(expectedResults.get(key), actualRecordsIngested.get(key),
               new CustomComparator(LENIENT,
                   // there are sometimes round off errors in the double values, but they are close

@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
-import com.microsoft.azure.kusto.KustoWriteSinkV2;
+import com.microsoft.azure.kusto.KustoWriteSink;
 
 public class FlinkKustoV2Sink {
   protected static final Logger LOG = LoggerFactory.getLogger(FlinkKustoV2Sink.class);
@@ -40,12 +40,12 @@ public class FlinkKustoV2Sink {
       KustoWriteOptions kustoWriteOptionsHeartbeat =
           KustoWriteOptions.builder().withDatabase(database).withTable(defaultTable)
               .withBatchSize(200).withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
-      KustoWriteSinkV2.builder().setWriteOptions(kustoWriteOptionsHeartbeat)
+      KustoWriteSink.builder().setWriteOptions(kustoWriteOptionsHeartbeat)
           .setConnectionOptions(kustoConnectionOptions).build(heartbeatDataStream);
       KustoWriteOptions kustoWriteOptionsTicker = KustoWriteOptions.builder().withDatabase(database)
           .withBatchSize(200).withTable("CryptoRatesTickerWithAck")
           .withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
-      KustoWriteSinkV2.builder().setWriteOptions(kustoWriteOptionsTicker)
+      KustoWriteSink.builder().setWriteOptions(kustoWriteOptionsTicker)
           .setConnectionOptions(kustoConnectionOptions).build(tickerDataStream);
       env.executeAsync("Flink Crypto Rates Demo");
     } catch (FileNotFoundException e) {

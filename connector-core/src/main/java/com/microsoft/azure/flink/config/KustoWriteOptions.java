@@ -240,8 +240,8 @@ public class KustoWriteOptions implements Serializable {
     }
 
     public KustoWriteOptions.Builder withDeliveryGuarantee(DeliveryGuarantee deliveryGuarantee) {
-      if(deliveryGuarantee != null) {
-        if(deliveryGuarantee == DeliveryGuarantee.NONE){
+      if (deliveryGuarantee != null) {
+        if (deliveryGuarantee == DeliveryGuarantee.NONE) {
           LOG.info(DeliveryGuarantee.NONE.getDescription().toString());
         }
         this.deliveryGuarantee = deliveryGuarantee;
