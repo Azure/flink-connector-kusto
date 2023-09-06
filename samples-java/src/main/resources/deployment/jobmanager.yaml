@@ -31,3 +31,28 @@ spec:
           env:
             - name: JOB_MANAGER_RPC_ADDRESS
               value: jobmanager
+            - name: FLINK_APP_ID
+              valueFrom:
+                secretKeyRef:
+                  name: flinkapp
+                  key: FLINK_APP_ID
+            - name: FLINK_APP_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: flinkapp
+                  key: FLINK_APP_KEY
+            - name: FLINK_CLUSTER_URI
+              valueFrom:
+                secretKeyRef:
+                  name: flinkapp
+                  key: FLINK_CLUSTER_URI
+            - name: FLINK_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: flinkapp
+                  key: FLINK_TENANT_ID
+            - name: FLINK_DB
+              valueFrom:
+                secretKeyRef:
+                  name: flinkapp
+                  key: FLINK_DB

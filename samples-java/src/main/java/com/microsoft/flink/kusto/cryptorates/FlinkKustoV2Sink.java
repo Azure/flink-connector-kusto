@@ -29,11 +29,11 @@ public class FlinkKustoV2Sink {
           cryptoSocketSource.process(processSplitFunction).getSideOutput(outputTagHeartbeat);
       DataStream<Ticker> tickerDataStream =
           cryptoSocketSource.process(processSplitFunction).getSideOutput(outputTagTicker);
-      String appId = System.getenv("APP_ID");
-      String appKey = System.getenv("APP_KEY");
-      String cluster = System.getenv("CLUSTER_URL");
-      String tenantId = System.getenv("AZURE_TENANT_ID");
-      String database = System.getenv("E2E_DB");
+      String appId = System.getenv("FLINK_APP_ID");
+      String appKey = System.getenv("FLINK_APP_KEY");
+      String cluster = System.getenv("FLINK_CLUSTER_URI");
+      String tenantId = System.getenv("FLINK_TENANT_ID");
+      String database = System.getenv("FLINK_DB");
       KustoConnectionOptions kustoConnectionOptions = KustoConnectionOptions.builder()
           .setAppId(appId).setAppKey(appKey).setTenantId(tenantId).setClusterUrl(cluster).build();
       String defaultTable = "CryptoRatesHeartbeatWithAck";
@@ -41,12 +41,12 @@ public class FlinkKustoV2Sink {
           KustoWriteOptions.builder().withDatabase(database).withTable(defaultTable)
               .withBatchSize(200).withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
       KustoWriteSink.builder().setWriteOptions(kustoWriteOptionsHeartbeat)
-          .setConnectionOptions(kustoConnectionOptions).build(heartbeatDataStream);
+          .setConnectionOptions(kustoConnectionOptions).build(heartbeatDataStream,2);
       KustoWriteOptions kustoWriteOptionsTicker = KustoWriteOptions.builder().withDatabase(database)
-          .withBatchSize(200).withTable("CryptoRatesTickerWithAck")
+          .withBatchSize(100).withTable("CryptoRatesTickerWithAck")
           .withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
       KustoWriteSink.builder().setWriteOptions(kustoWriteOptionsTicker)
-          .setConnectionOptions(kustoConnectionOptions).build(tickerDataStream);
+          .setConnectionOptions(kustoConnectionOptions).build(tickerDataStream,2);
       env.executeAsync("Flink Crypto Rates Demo");
     } catch (FileNotFoundException e) {
       LOG.error("FileNotFoundException", e);
