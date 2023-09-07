@@ -1,0 +1,39 @@
+package com.microsoft.azure.flink.common;
+
+import java.util.function.Predicate;
+
+import org.jetbrains.annotations.NotNull;
+
+import com.microsoft.azure.kusto.data.exceptions.KustoDataExceptionBase;
+import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
+
+import io.github.resilience4j.core.IntervalFunction;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.retry.RetryRegistry;
+
+public class KustoRetryUtil {
+  private KustoRetryUtil() {
+
+  }
+
+  @NotNull
+  public static Retry getRetries(KustoRetryConfig kustoRetryConfig) {
+    final Retry retry;
+    IntervalFunction backOffFunction = IntervalFunction.ofExponentialRandomBackoff(
+        kustoRetryConfig.getBaseIntervalMillis(), IntervalFunction.DEFAULT_MULTIPLIER,
+        IntervalFunction.DEFAULT_RANDOMIZATION_FACTOR, kustoRetryConfig.getMaxIntervalMillis());
+    Predicate<Throwable> isTransientException = e -> {
+      if ((e instanceof KustoDataExceptionBase)) {
+        return !((KustoDataExceptionBase) e).isPermanent();
+      }
+      return e instanceof IngestionServiceException;
+    };
+    RetryConfig retryConfig = RetryConfig.custom().maxAttempts(kustoRetryConfig.getMaxAttempts())
+        .intervalFunction(backOffFunction).retryOnException(isTransientException).build();
+    RetryRegistry registry = RetryRegistry.of(retryConfig);
+    retry = registry.retry("tempStoreService", retryConfig);
+    return retry;
+  }
+
+}

@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jobmanager
+spec:
+  selector:
+    matchLabels:
+      app: flink
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: master
+    spec:
+      containers:
+        - name: master
+          image: flink:1.17.1-scala_2.12
+          workingDir: /opt/flink
+          args:
+            - jobmanager
+          ports:
+            - containerPort: 6123
+              name: rpc
+            - containerPort: 6124
+              name: blob
+            - containerPort: 6125
+              name: query
+            - containerPort: 6126
+              name: ui
+          env:
+            - name: JOB_MANAGER_RPC_ADDRESS
+              value: jobmanager
+            - name: AZURE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: flinkapp
+                  key: FLINK_APP_ID
+            - name: AZURE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: flinkapp
+                  key: FLINK_APP_KEY
+            - name: FLINK_CLUSTER_URI
+              valueFrom:
+                secretKeyRef:
+                  name: flinkapp
+                  key: FLINK_CLUSTER_URI
+            - name: AZURE_TENANT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: flinkapp
+                  key: FLINK_TENANT_ID
+            - name: FLINK_DB
+              valueFrom:
+                secretKeyRef:
+                  name: flinkapp
+                  key: FLINK_DB
