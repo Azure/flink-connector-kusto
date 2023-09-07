@@ -157,7 +157,8 @@ public class FlinkKustoSinkIT {
 
   @Test
   void testRecovery() throws Exception {
-    // perform the test where there is intermittent failure, and the job recovers and keeps sending the data
+    // perform the test where there is intermittent failure, and the job recovers and keeps sending
+    // the data
     // this shoud get ingested (though ultimately the JobStatus goes to failure status)
     final String typeKey = "atleast-once-test-recovery";
     KustoWriteOptions kustoWriteOptions =

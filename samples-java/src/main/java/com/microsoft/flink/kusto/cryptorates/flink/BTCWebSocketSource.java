@@ -1,4 +1,4 @@
-package com.microsoft.flink.kusto.cryptorates;
+package com.microsoft.flink.kusto.cryptorates.flink;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;

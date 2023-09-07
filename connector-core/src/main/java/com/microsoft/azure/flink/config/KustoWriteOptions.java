@@ -228,17 +228,12 @@ public class KustoWriteOptions implements Serializable {
     }
 
     /**
-     * Sets the additional tags
-     *
-     * @param additionalTags the additional tags
+     * Sets the DeiveryGuarantee
+     * 
+     * @param deliveryGuarantee The delivery guarantee, this can be None (fastest), AtLeastOnce
+     *        (default) or ExactlyOnce (slowest)
      * @return this builder
      */
-
-    public KustoWriteOptions.Builder withAdditionalTags(List<String> additionalTags) {
-      this.additionalTags = additionalTags;
-      return this;
-    }
-
     public KustoWriteOptions.Builder withDeliveryGuarantee(DeliveryGuarantee deliveryGuarantee) {
       if (deliveryGuarantee != null) {
         if (deliveryGuarantee == DeliveryGuarantee.NONE) {
@@ -249,6 +244,17 @@ public class KustoWriteOptions implements Serializable {
       return this;
     }
 
+    /**
+     * Sets the Client batch size limit. The ingest to Kusto happens through a blob ingest. The
+     * ingestion is optimized for large files (1GB compressed,4 GB deflated). This parameter
+     * determines the size of the file that is created before it is ingested to Kusto.If the stream
+     * is slow, it may take longer to reach this limit. Also refer
+     * 
+     * @see #withBatchSize for the number of records that are collected before the file is created.
+     * @see #withBatchIntervalMs for the batch interval in milliseconds
+     * @param clientBatchSizeLimit The client batch size limit
+     * @return this builder
+     */
     public KustoWriteOptions.Builder withClientBatchSizeLimit(long clientBatchSizeLimit) {
       this.clientBatchSizeLimit = clientBatchSizeLimit;
       return this;
@@ -261,7 +267,7 @@ public class KustoWriteOptions implements Serializable {
 
     /**
      * Builds a {@link KustoWriteOptions} instance.
-     *
+     * 
      * @return a {@link KustoWriteOptions} instance
      */
     public KustoWriteOptions build() {
