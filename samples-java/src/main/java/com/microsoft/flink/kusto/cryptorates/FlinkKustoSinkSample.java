@@ -13,9 +13,8 @@ import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 import com.microsoft.azure.kusto.KustoWriteSink;
 
-public class FlinkKustoV2Sink {
-  protected static final Logger LOG = LoggerFactory.getLogger(FlinkKustoV2Sink.class);
-
+public class FlinkKustoSinkSample {
+  protected static final Logger LOG = LoggerFactory.getLogger(FlinkKustoSinkSample.class);
   public static void main(String... args) {
     try {
       final OutputTag<Heartbeat> outputTagHeartbeat =
@@ -29,11 +28,12 @@ public class FlinkKustoV2Sink {
           cryptoSocketSource.process(processSplitFunction).getSideOutput(outputTagHeartbeat);
       DataStream<Ticker> tickerDataStream =
           cryptoSocketSource.process(processSplitFunction).getSideOutput(outputTagTicker);
-      String appId = System.getenv("FLINK_APP_ID");
-      String appKey = System.getenv("FLINK_APP_KEY");
-      String cluster = System.getenv("FLINK_CLUSTER_URI");
-      String tenantId = System.getenv("FLINK_TENANT_ID");
+      //Ref this for Azure Identity examples. https://blog.jongallant.com/2021/08/azure-identity-202/
+      String appId = System.getenv("AZURE_CLIENT_ID");
+      String appKey = System.getenv("AZURE_CLIENT_SECRET");
+      String tenantId = System.getenv("AZURE_TENANT_ID");
       String database = System.getenv("FLINK_DB");
+      String cluster = System.getenv("FLINK_CLUSTER_URI");
       KustoConnectionOptions kustoConnectionOptions = KustoConnectionOptions.builder()
           .setAppId(appId).setAppKey(appKey).setTenantId(tenantId).setClusterUrl(cluster).build();
       String defaultTable = "CryptoRatesHeartbeat";
