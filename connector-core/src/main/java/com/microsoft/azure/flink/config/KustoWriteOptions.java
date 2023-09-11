@@ -133,7 +133,7 @@ public class KustoWriteOptions implements Serializable {
     private String table;
     private String ingestionMappingRef = null;
     private boolean flushImmediately = false;
-    private long batchIntervalMs = -1L; // Not applicable by default
+    private long batchIntervalMs = 30000L; // 30 seconds
     private long batchSize = 1000L; // Or 1000 records
     private long clientBatchSizeLimit = 300 * 1024 * 1024; // Or 300 MB
     private boolean pollForIngestionStatus = false; // Or 300 MB

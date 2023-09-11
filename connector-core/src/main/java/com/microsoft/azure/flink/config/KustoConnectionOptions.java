@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import com.microsoft.azure.flink.common.KustoRetryConfig;
@@ -91,7 +92,8 @@ public class KustoConnectionOptions implements Serializable {
         + isManagedIdentity + '\'' + ", managedIdentityAppId='" + managedIdentityAppId + '\'' + '}';
   }
 
-  public static Builder builder() {
+  @Contract(" -> new")
+  public static @NotNull Builder builder() {
     return new Builder();
   }
 
