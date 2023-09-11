@@ -7,6 +7,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 
+import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 
@@ -20,6 +21,17 @@ public class ITSetup {
     return KustoConnectionOptions.builder().setAppId(appId).setAppKey(appKey).setTenantId(authority)
         .setClusterUrl(cluster).build();
   }
+
+  public synchronized static KustoConnectionOptions getConnectorPropertiesWithCustomRetries(
+      KustoRetryConfig retryConfig) {
+    String appId = getProperty("appId", "", false);
+    String appKey = getProperty("appKey", "", false);
+    String authority = getProperty("authority", "", false);
+    String cluster = getProperty("cluster", "", false);
+    return KustoConnectionOptions.builder().setAppId(appId).setAppKey(appKey).setTenantId(authority)
+        .setRetryOptions(retryConfig).setClusterUrl(cluster).build();
+  }
+
 
 
   public static KustoWriteOptions getWriteOptions() {

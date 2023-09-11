@@ -1,4 +1,4 @@
-package com.microsoft.flink.kusto.cryptorates;
+package com.microsoft.flink.kusto.cryptorates.flink;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -10,6 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.flink.kusto.cryptorates.common.Heartbeat;
+import com.microsoft.flink.kusto.cryptorates.common.Ticker;
 
 public class SplitTypes extends ProcessFunction<String, String> {
   private static final Logger LOG = LoggerFactory.getLogger(SplitTypes.class);

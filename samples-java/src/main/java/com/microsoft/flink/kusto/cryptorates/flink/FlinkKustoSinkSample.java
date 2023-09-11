@@ -1,4 +1,4 @@
-package com.microsoft.flink.kusto.cryptorates;
+package com.microsoft.flink.kusto.cryptorates.flink;
 
 import java.io.FileNotFoundException;
 
@@ -12,9 +12,12 @@ import org.slf4j.LoggerFactory;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 import com.microsoft.azure.kusto.KustoWriteSink;
+import com.microsoft.flink.kusto.cryptorates.common.Heartbeat;
+import com.microsoft.flink.kusto.cryptorates.common.Ticker;
 
 public class FlinkKustoSinkSample {
   protected static final Logger LOG = LoggerFactory.getLogger(FlinkKustoSinkSample.class);
+
   public static void main(String... args) {
     try {
       final OutputTag<Heartbeat> outputTagHeartbeat =
@@ -28,7 +31,8 @@ public class FlinkKustoSinkSample {
           cryptoSocketSource.process(processSplitFunction).getSideOutput(outputTagHeartbeat);
       DataStream<Ticker> tickerDataStream =
           cryptoSocketSource.process(processSplitFunction).getSideOutput(outputTagTicker);
-      //Ref this for Azure Identity examples. https://blog.jongallant.com/2021/08/azure-identity-202/
+      // Ref this for Azure Identity examples.
+      // https://blog.jongallant.com/2021/08/azure-identity-202/
       String appId = System.getenv("AZURE_CLIENT_ID");
       String appKey = System.getenv("AZURE_CLIENT_SECRET");
       String tenantId = System.getenv("AZURE_TENANT_ID");
@@ -36,18 +40,18 @@ public class FlinkKustoSinkSample {
       String cluster = System.getenv("FLINK_CLUSTER_URI");
       KustoConnectionOptions kustoConnectionOptions = KustoConnectionOptions.builder()
           .setAppId(appId).setAppKey(appKey).setTenantId(tenantId).setClusterUrl(cluster).build();
-      String defaultTable = "CryptoRatesHeartbeat";
-      KustoWriteOptions kustoWriteOptionsHeartbeat =
-          KustoWriteOptions.builder().withDatabase(database).withTable(defaultTable)
-              .withBatchSize(200).withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
+      String defaultTable = "CryptoRatesHeartbeatTimeBatch";
+      KustoWriteOptions kustoWriteOptionsHeartbeat = KustoWriteOptions.builder()
+          .withDatabase(database).withTable(defaultTable).withBatchIntervalMs(30000)
+          .withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
       KustoWriteSink.builder().setWriteOptions(kustoWriteOptionsHeartbeat)
-          .setConnectionOptions(kustoConnectionOptions).build(heartbeatDataStream,2);
+          .setConnectionOptions(kustoConnectionOptions).build(heartbeatDataStream, 4);
       KustoWriteOptions kustoWriteOptionsTicker = KustoWriteOptions.builder().withDatabase(database)
-          .withBatchSize(100).withTable("CryptoRatesTicker")
+          .withTable("CryptoRatesTickerTimeBatch").withBatchIntervalMs(30000)
           .withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
       KustoWriteSink.builder().setWriteOptions(kustoWriteOptionsTicker)
-          .setConnectionOptions(kustoConnectionOptions).build(tickerDataStream,2);
-      env.executeAsync("Flink Crypto Rates Demo");
+          .setConnectionOptions(kustoConnectionOptions).build(tickerDataStream, 4);
+      env.executeAsync("Flink Crypto Rates Demo - Batch of 30s");
     } catch (FileNotFoundException e) {
       LOG.error("FileNotFoundException", e);
     } catch (Exception e) {

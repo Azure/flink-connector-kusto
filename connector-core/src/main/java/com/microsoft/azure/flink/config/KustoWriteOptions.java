@@ -44,24 +44,21 @@ public class KustoWriteOptions implements Serializable {
   private final DeliveryGuarantee deliveryGuarantee;
   private final boolean pollForIngestionStatus;
 
-  private KustoWriteOptions(String database, String table, String ingestionMappingRef,
-      boolean flushImmediately, long batchIntervalMs, long batchSize, long clientBatchSizeLimit,
-      List<String> ingestByTags, List<String> additionalTags, DeliveryGuarantee deliveryGuarantee,
-      boolean pollForIngestionStatus) {
-    this.database = checkNotNull(database);
-    this.table = checkNotNull(table);
-    this.ingestionMappingRef = ingestionMappingRef;
-    this.flushImmediately = flushImmediately;
+  private KustoWriteOptions(@NotNull Builder builder) {
+    this.database = checkNotNull(builder.database);
+    this.table = checkNotNull(builder.table);
+    this.ingestionMappingRef = builder.ingestionMappingRef;
+    this.flushImmediately = builder.flushImmediately;
     if (flushImmediately) {
       LOG.warn("FlushImmediately is set to true, this may cause performance issues");
     }
-    this.batchIntervalMs = batchIntervalMs;
-    this.batchSize = batchSize;
-    this.clientBatchSizeLimit = clientBatchSizeLimit;
-    this.ingestByTags = ingestByTags;
-    this.additionalTags = additionalTags;
-    this.deliveryGuarantee = deliveryGuarantee;
-    this.pollForIngestionStatus = pollForIngestionStatus;
+    this.batchIntervalMs = builder.batchIntervalMs;
+    this.batchSize = builder.batchSize;
+    this.clientBatchSizeLimit = builder.clientBatchSizeLimit;
+    this.ingestByTags = builder.ingestByTags;
+    this.additionalTags = builder.additionalTags;
+    this.deliveryGuarantee = builder.deliveryGuarantee;
+    this.pollForIngestionStatus = builder.pollForIngestionStatus;
   }
 
   public List<String> getIngestByTags() {
@@ -228,17 +225,12 @@ public class KustoWriteOptions implements Serializable {
     }
 
     /**
-     * Sets the additional tags
-     *
-     * @param additionalTags the additional tags
+     * Sets the DeiveryGuarantee
+     * 
+     * @param deliveryGuarantee The delivery guarantee, this can be None (fastest), AtLeastOnce
+     *        (default) or ExactlyOnce (slowest)
      * @return this builder
      */
-
-    public KustoWriteOptions.Builder withAdditionalTags(List<String> additionalTags) {
-      this.additionalTags = additionalTags;
-      return this;
-    }
-
     public KustoWriteOptions.Builder withDeliveryGuarantee(DeliveryGuarantee deliveryGuarantee) {
       if (deliveryGuarantee != null) {
         if (deliveryGuarantee == DeliveryGuarantee.NONE) {
@@ -249,6 +241,17 @@ public class KustoWriteOptions implements Serializable {
       return this;
     }
 
+    /**
+     * Sets the Client batch size limit. The ingest to Kusto happens through a blob ingest. The
+     * ingestion is optimized for large files (1GB compressed,4 GB deflated). This parameter
+     * determines the size of the file that is created before it is ingested to Kusto.If the stream
+     * is slow, it may take longer to reach this limit. Also refer
+     * 
+     * @see #withBatchSize for the number of records that are collected before the file is created.
+     * @see #withBatchIntervalMs for the batch interval in milliseconds
+     * @param clientBatchSizeLimit The client batch size limit
+     * @return this builder
+     */
     public KustoWriteOptions.Builder withClientBatchSizeLimit(long clientBatchSizeLimit) {
       this.clientBatchSizeLimit = clientBatchSizeLimit;
       return this;
@@ -261,7 +264,7 @@ public class KustoWriteOptions implements Serializable {
 
     /**
      * Builds a {@link KustoWriteOptions} instance.
-     *
+     * 
      * @return a {@link KustoWriteOptions} instance
      */
     public KustoWriteOptions build() {
@@ -269,9 +272,7 @@ public class KustoWriteOptions implements Serializable {
         LOG.warn(
             "BatchInterval and BatchSize are applicable options only for SinkWriter and not applicable for GenericWriteAheadSink");
       }
-      return new KustoWriteOptions(database, table, ingestionMappingRef, flushImmediately,
-          batchIntervalMs, batchSize, clientBatchSizeLimit, ingestByTags, additionalTags,
-          deliveryGuarantee, pollForIngestionStatus);
+      return new KustoWriteOptions(this);
     }
   }
 }

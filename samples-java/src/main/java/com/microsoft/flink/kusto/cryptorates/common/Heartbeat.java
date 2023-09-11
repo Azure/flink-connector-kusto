@@ -1,4 +1,4 @@
-package com.microsoft.flink.kusto.cryptorates;
+package com.microsoft.flink.kusto.cryptorates.common;
 
 public class Heartbeat {
   private String type;

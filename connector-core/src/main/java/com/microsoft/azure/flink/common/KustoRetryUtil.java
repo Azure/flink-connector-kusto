@@ -18,7 +18,7 @@ public class KustoRetryUtil {
   }
 
   @NotNull
-  public static Retry getRetries(KustoRetryConfig kustoRetryConfig) {
+  public static Retry getRetries(@NotNull KustoRetryConfig kustoRetryConfig) {
     final Retry retry;
     IntervalFunction backOffFunction = IntervalFunction.ofExponentialRandomBackoff(
         kustoRetryConfig.getBaseIntervalMillis(), IntervalFunction.DEFAULT_MULTIPLIER,
@@ -35,5 +35,4 @@ public class KustoRetryUtil {
     retry = registry.retry("tempStoreService", retryConfig);
     return retry;
   }
-
 }

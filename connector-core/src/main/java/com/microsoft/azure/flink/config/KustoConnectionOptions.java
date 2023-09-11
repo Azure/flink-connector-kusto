@@ -4,6 +4,9 @@ import java.io.Serializable;
 import java.util.Objects;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.jetbrains.annotations.NotNull;
+
+import com.microsoft.azure.flink.common.KustoRetryConfig;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -19,16 +22,17 @@ public class KustoConnectionOptions implements Serializable {
   private final String tenantId;
   private final boolean isManagedIdentity;
   private final String managedIdentityAppId;
+  private final KustoRetryConfig kustoRetryConfig;
 
-  private KustoConnectionOptions(String clusterUrl, String appId, String appKey, String tenantId,
-      boolean isManagedIdentity, String managedIdentityAppId) {
-    this.clusterUrl = checkNotNull(clusterUrl);
+  private KustoConnectionOptions(@NotNull Builder builder) {
+    this.clusterUrl = checkNotNull(builder.clusterUrl);
     this.ingestUrl = clusterUrl.replaceFirst(PROTOCOL_SUFFIX, PROTOCOL_SUFFIX + INGEST_PREFIX);
-    this.appId = appId;
-    this.appKey = appKey;
-    this.tenantId = tenantId;
-    this.isManagedIdentity = isManagedIdentity;
-    this.managedIdentityAppId = managedIdentityAppId;
+    this.appId = builder.appId;
+    this.appKey = builder.appKey;
+    this.tenantId = builder.tenantId;
+    this.isManagedIdentity = builder.isManagedIdentity;
+    this.managedIdentityAppId = builder.managedIdentityAppId;
+    this.kustoRetryConfig = builder.kustoRetryConfig;
   }
 
   public String getClusterUrl() {
@@ -57,6 +61,10 @@ public class KustoConnectionOptions implements Serializable {
 
   public String getManagedIdentityAppId() {
     return managedIdentityAppId;
+  }
+
+  public KustoRetryConfig getKustoRetryConfig() {
+    return kustoRetryConfig;
   }
 
   @Override
@@ -96,6 +104,7 @@ public class KustoConnectionOptions implements Serializable {
     private String tenantId;
     private boolean isManagedIdentity = false;
     private String managedIdentityAppId;
+    private KustoRetryConfig kustoRetryConfig = new KustoRetryConfig.Builder().build();
 
     private Builder() {}
 
@@ -132,14 +141,19 @@ public class KustoConnectionOptions implements Serializable {
       return this;
     }
 
+    public Builder setRetryOptions(KustoRetryConfig kustoRetryConfig) {
+      this.kustoRetryConfig = checkNotNull(kustoRetryConfig,
+          "If KustoRetryOptions are provided, they must not be null");
+      return this;
+    }
+
     /**
      * Build the {@link KustoConnectionOptions}.
      *
      * @return a KustoConnectionOptions with the settings made for this builder.
      */
     public KustoConnectionOptions build() {
-      return new KustoConnectionOptions(clusterUrl, appId, appKey, tenantId, isManagedIdentity,
-          managedIdentityAppId);
+      return new KustoConnectionOptions(this);
     }
   }
 }

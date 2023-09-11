@@ -1,6 +1,11 @@
 package com.microsoft.azure.flink.common;
 
-public class KustoRetryConfig {
+import java.io.Serializable;
+
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+
+public class KustoRetryConfig implements Serializable {
   private final int maxAttempts;
 
   public int getMaxAttempts() {
@@ -23,7 +28,8 @@ public class KustoRetryConfig {
   private final long maxIntervalMillis;
   private final int cacheExpirationSeconds;
 
-  private KustoRetryConfig(Builder builder) {
+  @Contract(pure = true)
+  private KustoRetryConfig(@NotNull Builder builder) {
     this.maxAttempts = builder.maxAttempts;
     this.baseIntervalMillis = builder.baseIntervalMillis;
     this.maxIntervalMillis = builder.maxIntervalMillis;
@@ -31,13 +37,13 @@ public class KustoRetryConfig {
   }
 
 
-  public static KustoRetryConfig.Builder builder() {
+  @Contract(" -> new")
+  public static KustoRetryConfig.@NotNull Builder builder() {
     return new KustoRetryConfig.Builder();
   }
 
   // Builder for RetryConfig
   public static class Builder {
-
     private int maxAttempts = 3;
     private long baseIntervalMillis = 1000L;
     private long maxIntervalMillis = 10 * baseIntervalMillis;

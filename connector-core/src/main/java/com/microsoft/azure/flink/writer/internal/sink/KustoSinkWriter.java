@@ -168,14 +168,13 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
     long bulkFlushInterval = writeOptions.getBatchIntervalMs();
     long lastSentInterval =
         Instant.now(Clock.systemUTC()).toEpochMilli() - this.kustoSinkCommon.lastSendTime;
-    boolean isOverIntervalLimit = this.kustoSinkCommon.lastSendTime > 0 && bulkFlushInterval != -1
+    boolean isOverIntervalLimit = this.kustoSinkCommon.lastSendTime >= 0 && bulkFlushInterval != -1
         && lastSentInterval >= bulkFlushInterval;
     if (isOverIntervalLimit) {
-      LOG.debug(
-          "OverMaxBatchIntervalLimit triggered last sent interval data at {} against lastSentTime {}."
-              + "The last sent interval is {}",
+      LOG.trace(
+          "OverMaxBatchIntervalLimit triggered at {}. LastSentTime {}.The last sent interval is {} and bulkFlushInterval {}.",
           Instant.now(Clock.systemUTC()), Instant.ofEpochMilli(this.kustoSinkCommon.lastSendTime),
-          lastSentInterval);
+          lastSentInterval, bulkFlushInterval);
     }
     return isOverIntervalLimit;
   }

@@ -75,7 +75,7 @@ public class KustoSinkCommon<IN> {
   protected final transient Supplier<Integer> aritySupplier;
   protected final transient BiFunction<IN, Integer, Object> extractFieldValueFunction;
   protected IngestionMapping ingestionMapping;
-  protected volatile long lastSendTime = 0L;
+  protected volatile long lastSendTime = Instant.now(Clock.systemUTC()).toEpochMilli();
   protected volatile long ackTime = Long.MAX_VALUE;
 
 
