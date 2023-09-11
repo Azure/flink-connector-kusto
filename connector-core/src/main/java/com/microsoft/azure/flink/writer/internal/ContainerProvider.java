@@ -32,6 +32,11 @@ import io.github.resilience4j.retry.Retry;
 import static com.microsoft.azure.flink.common.KustoRetryUtil.getRetries;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
+/**
+ * The core for ingestion is to get a storage blob where data can be serialized and upload from
+ * where data can be ingested into Kusto. This is provided for from this class. The process is to
+ * get a storage account that is cached and then is used to upload data to.
+ */
 @Internal
 @PublicEvolving
 public class ContainerProvider implements Serializable {
@@ -56,12 +61,17 @@ public class ContainerProvider implements Serializable {
 
   private static synchronized ContainerProvider build(ContainerProvider.Builder builder) {
     if (containerProviderInstance == null) {
-      containerProviderInstance =
-          new ContainerProvider(builder.connectionOptions, builder.kustoRetryConfig);
+      containerProviderInstance = new ContainerProvider(checkNotNull(builder.connectionOptions),
+          checkNotNull(builder.kustoRetryConfig));
     }
     return containerProviderInstance;
   }
 
+  /**
+   * Returns a container with SAS key to upload data to.
+   * 
+   * @return Container with SAS key to upload data to.
+   */
   public ContainerWithSas getBlobContainer() {
     // Not expired and a double check the list is not empty
     if (isCacheExpired()) {
@@ -77,6 +87,11 @@ public class ContainerProvider implements Serializable {
         && !CONTAINER_SAS.isEmpty();
   }
 
+  /**
+   * Returns a supplier that returns a container with SAS key to upload data to.
+   * 
+   * @return Supplier that returns a container with SAS key to upload data to.
+   */
   @Contract(pure = true)
   private @NotNull Supplier<ContainerWithSas> getContainerSupplier() {
     return () -> {
@@ -110,22 +125,26 @@ public class ContainerProvider implements Serializable {
     };
   }
 
+  /**
+   * Returns the expiration timestamp for the container.
+   * 
+   * @return Expiration timestamp for the container.
+   */
   public long getExpirationTimestamp() {
     return expirationTimestamp;
   }
 
+  /**
+   * Builder for ContainerProvider.
+   */
 
   public static class Builder {
     private final KustoConnectionOptions connectionOptions;
-    private KustoRetryConfig kustoRetryConfig = new KustoRetryConfig.Builder().build();
+    private final KustoRetryConfig kustoRetryConfig;
 
-    public Builder(KustoConnectionOptions connectionOptions) {
+    public Builder(@NotNull KustoConnectionOptions connectionOptions) {
       this.connectionOptions = connectionOptions;
-    }
-
-    public Builder withKustoRetryConfig(KustoRetryConfig kustoRetryConfig) {
-      this.kustoRetryConfig = kustoRetryConfig;
-      return this;
+      this.kustoRetryConfig = connectionOptions.getKustoRetryConfig();
     }
 
     public ContainerProvider build() {

@@ -4,6 +4,7 @@ import java.net.URISyntaxException;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
@@ -32,17 +33,20 @@ public class KustoClientUtil {
         getIngestKcsb(connectionOptions, sourceClass, "ingest"));
   }
 
-  public static Client createClient(KustoConnectionOptions connectionOptions, String sourceClass)
-      throws URISyntaxException {
+  @Contract("_, _ -> new")
+  public static @NotNull Client createClient(KustoConnectionOptions connectionOptions,
+      String sourceClass) throws URISyntaxException {
     return ClientFactory.createClient(getQueryKcsb(connectionOptions, sourceClass));
   }
 
 
-  public static ConnectionStringBuilder getIngestKcsb(KustoConnectionOptions connectionOptions,
-      String sourceClass, String clusterType) {
+  public static ConnectionStringBuilder getIngestKcsb(
+      @NotNull KustoConnectionOptions connectionOptions, String sourceClass, String clusterType) {
     ConnectionStringBuilder kcsb = connectionOptions.isManagedIdentity()
-        ? ConnectionStringBuilder.createWithAadManagedIdentity(connectionOptions.getIngestUrl(),
-            connectionOptions.getManagedIdentityAppId())
+        ? "system".equalsIgnoreCase(connectionOptions.getManagedIdentityAppId())
+            ? ConnectionStringBuilder.createWithAadManagedIdentity(connectionOptions.getIngestUrl())
+            : ConnectionStringBuilder.createWithAadManagedIdentity(connectionOptions.getIngestUrl(),
+                connectionOptions.getManagedIdentityAppId())
         : ConnectionStringBuilder.createWithAadApplicationCredentials(
             connectionOptions.getIngestUrl(), connectionOptions.getAppId(),
             connectionOptions.getAppKey(), connectionOptions.getTenantId());
@@ -57,14 +61,16 @@ public class KustoClientUtil {
       Pair<String, String>... additionalOptions) {
     kcsb.setConnectorDetails(Version.CLIENT_NAME, Version.getVersion(), null, null, false, null,
         additionalOptions);
-
   }
 
   private static ConnectionStringBuilder getQueryKcsb(
       @NotNull KustoConnectionOptions connectionOptions, String sourceClass) {
     ConnectionStringBuilder kcsb = connectionOptions.isManagedIdentity()
-        ? ConnectionStringBuilder.createWithAadManagedIdentity(connectionOptions.getClusterUrl(),
-            connectionOptions.getManagedIdentityAppId())
+        ? "system".equalsIgnoreCase(connectionOptions.getManagedIdentityAppId())
+            ? ConnectionStringBuilder
+                .createWithAadManagedIdentity(connectionOptions.getClusterUrl())
+            : ConnectionStringBuilder.createWithAadManagedIdentity(
+                connectionOptions.getClusterUrl(), connectionOptions.getManagedIdentityAppId())
         : ConnectionStringBuilder.createWithAadApplicationCredentials(
             connectionOptions.getClusterUrl(), connectionOptions.getAppId(),
             connectionOptions.getAppKey(), connectionOptions.getTenantId());

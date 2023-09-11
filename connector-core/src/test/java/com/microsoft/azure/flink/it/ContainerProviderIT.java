@@ -11,7 +11,7 @@ import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.writer.internal.ContainerProvider;
 
-import static com.microsoft.azure.flink.it.ITSetup.getConnectorProperties;
+import static com.microsoft.azure.flink.it.ITSetup.getConnectorPropertiesWithCustomRetries;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -22,12 +22,12 @@ public class ContainerProviderIT {
 
   @BeforeAll
   public static void setup() {
-    KustoConnectionOptions validConnectionOptions = getConnectorProperties();
     // Test with a short TTL
     KustoRetryConfig queryRetryConfig =
         KustoRetryConfig.builder().withCacheExpirationSeconds(5).build();
-    containerProvider = new ContainerProvider.Builder(validConnectionOptions)
-        .withKustoRetryConfig(queryRetryConfig).build();
+    KustoConnectionOptions validConnectionOptions =
+        getConnectorPropertiesWithCustomRetries(queryRetryConfig);
+    containerProvider = new ContainerProvider.Builder(validConnectionOptions).build();
   }
 
   @Test

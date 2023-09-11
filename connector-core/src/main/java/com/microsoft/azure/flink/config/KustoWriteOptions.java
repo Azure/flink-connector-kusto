@@ -44,24 +44,21 @@ public class KustoWriteOptions implements Serializable {
   private final DeliveryGuarantee deliveryGuarantee;
   private final boolean pollForIngestionStatus;
 
-  private KustoWriteOptions(String database, String table, String ingestionMappingRef,
-      boolean flushImmediately, long batchIntervalMs, long batchSize, long clientBatchSizeLimit,
-      List<String> ingestByTags, List<String> additionalTags, DeliveryGuarantee deliveryGuarantee,
-      boolean pollForIngestionStatus) {
-    this.database = checkNotNull(database);
-    this.table = checkNotNull(table);
-    this.ingestionMappingRef = ingestionMappingRef;
-    this.flushImmediately = flushImmediately;
+  private KustoWriteOptions(@NotNull Builder builder) {
+    this.database = checkNotNull(builder.database);
+    this.table = checkNotNull(builder.table);
+    this.ingestionMappingRef = builder.ingestionMappingRef;
+    this.flushImmediately = builder.flushImmediately;
     if (flushImmediately) {
       LOG.warn("FlushImmediately is set to true, this may cause performance issues");
     }
-    this.batchIntervalMs = batchIntervalMs;
-    this.batchSize = batchSize;
-    this.clientBatchSizeLimit = clientBatchSizeLimit;
-    this.ingestByTags = ingestByTags;
-    this.additionalTags = additionalTags;
-    this.deliveryGuarantee = deliveryGuarantee;
-    this.pollForIngestionStatus = pollForIngestionStatus;
+    this.batchIntervalMs = builder.batchIntervalMs;
+    this.batchSize = builder.batchSize;
+    this.clientBatchSizeLimit = builder.clientBatchSizeLimit;
+    this.ingestByTags = builder.ingestByTags;
+    this.additionalTags = builder.additionalTags;
+    this.deliveryGuarantee = builder.deliveryGuarantee;
+    this.pollForIngestionStatus = builder.pollForIngestionStatus;
   }
 
   public List<String> getIngestByTags() {
@@ -275,9 +272,7 @@ public class KustoWriteOptions implements Serializable {
         LOG.warn(
             "BatchInterval and BatchSize are applicable options only for SinkWriter and not applicable for GenericWriteAheadSink");
       }
-      return new KustoWriteOptions(database, table, ingestionMappingRef, flushImmediately,
-          batchIntervalMs, batchSize, clientBatchSizeLimit, ingestByTags, additionalTags,
-          deliveryGuarantee, pollForIngestionStatus);
+      return new KustoWriteOptions(this);
     }
   }
 }
