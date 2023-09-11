@@ -11,6 +11,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -88,6 +89,11 @@ public class KustoWriteSink {
   }
 
   public <IN> void build(@NotNull DataStream<IN> dataStream, int parallelism) throws Exception {
+    sinkDataStream(dataStream, parallelism);
+  }
+
+  private <IN> DataStreamSink<IN> sinkDataStream(@NotNull DataStream<IN> dataStream,
+      int parallelism) {
     TypeInformation<IN> typeInfo = dataStream.getType();
     TypeSerializer<IN> serializer =
         typeInfo.createSerializer(dataStream.getExecutionEnvironment().getConfig());
@@ -100,9 +106,15 @@ public class KustoWriteSink {
     sanityCheck();
     LOG.info("Building KustoSink with WriteOptions: {} and ConnectionOptions {}",
         this.writeOptions.toString(), this.connectionOptions.toString());
-    dataStream
+    return dataStream
         .sinkTo(new KustoSink<>(this.connectionOptions, this.writeOptions, serializer, typeInfo))
         .setParallelism(parallelism);
+  }
+
+  public <IN> void build(@NotNull DataStream<IN> dataStream, int parallelism, String name,
+      String uid) throws Exception {
+    DataStreamSink<IN> sinkStream = sinkDataStream(dataStream, parallelism);
+    sinkStream.name(name).uid(uid);
   }
 
   public <IN> void buildWriteAheadSink(@NotNull DataStream<IN> dataStream) throws Exception {
