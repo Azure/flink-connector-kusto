@@ -20,7 +20,7 @@ KustoConnectionOptions kustoConnectionOptions = KustoConnectionOptions.builder()
   .setClusterUrl(cluster).build();
 ```
 ## Managed Identity Authentication
-Managed identity auth
+Managed identity authentication allows the user to authenticate with AAD using a managed identity. This authentication method supports system managed identity and user managed identity.
 
 * **setManagedIdentityAppId**: The managed identity id to use. Use "system" for system managed identity. Use the object guid for user managed identity.
 

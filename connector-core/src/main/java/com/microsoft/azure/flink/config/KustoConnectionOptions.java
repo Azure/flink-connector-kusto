@@ -116,34 +116,34 @@ public class KustoConnectionOptions implements Serializable {
      * @param clusterUrl connection string of Kusto
      * @return this builder
      */
-    public Builder setClusterUrl(String clusterUrl) {
+    public Builder withClusterUrl(String clusterUrl) {
       this.clusterUrl = clusterUrl;
       return this;
     }
 
-    public Builder setAppId(String appId) {
+    public Builder withAppId(String appId) {
       this.appId = checkNotNull(appId, "The appId for auth must not be null");
       return this;
     }
 
-    public Builder setAppKey(String appKey) {
+    public Builder withAppKey(String appKey) {
       this.appKey = checkNotNull(appKey, "The app key for auth must not be null");
       return this;
     }
 
-    public Builder setTenantId(String tenantId) {
+    public Builder withTenantId(String tenantId) {
       this.tenantId = checkNotNull(tenantId, "The app key for auth must not be null");
       return this;
     }
 
-    public Builder setManagedIdentityAppId(String managedIdentityAppId) {
+    public Builder withManagedIdentityAppId(String managedIdentityAppId) {
       this.managedIdentityAppId =
           checkNotNull(managedIdentityAppId, "The User managed identity for auth must not be null");
       this.isManagedIdentity = true;
       return this;
     }
 
-    public Builder setRetryOptions(KustoRetryConfig kustoRetryConfig) {
+    public Builder withRetryOptions(KustoRetryConfig kustoRetryConfig) {
       this.kustoRetryConfig = checkNotNull(kustoRetryConfig,
           "If KustoRetryOptions are provided, they must not be null");
       return this;

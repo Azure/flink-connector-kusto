@@ -39,7 +39,7 @@ public class FlinkKustoSinkSample {
       String database = System.getenv("FLINK_DB");
       String cluster = System.getenv("FLINK_CLUSTER_URI");
       KustoConnectionOptions kustoConnectionOptions = KustoConnectionOptions.builder()
-          .setAppId(appId).setAppKey(appKey).setTenantId(tenantId).setClusterUrl(cluster).build();
+          .withAppId(appId).withAppKey(appKey).withTenantId(tenantId).withClusterUrl(cluster).build();
       String defaultTable = "CryptoRatesHeartbeatTimeBatch";
       KustoWriteOptions kustoWriteOptionsHeartbeat = KustoWriteOptions.builder()
           .withDatabase(database).withTable(defaultTable).withBatchIntervalMs(30000)
