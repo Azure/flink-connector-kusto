@@ -126,7 +126,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
         try {
           doBulkWrite();
         } catch (Exception e) {
-          LOG.error("Writing records to Kusto failed when closing MongoWriter", e);
+          LOG.error("Writing records to Kusto failed when closing KustoWriter", e);
           throw new IOException("Writing records to Kusto failed.", e);
         } finally {
           this.kustoSinkCommon.close();

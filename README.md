@@ -1,6 +1,6 @@
 # Apache Flink Kusto Connector
 
-This repository contains the official Apache Flink MongoDB connector.
+This repository contains the connector and samples for Apache Flink [ADX/Kusto](https://docs.microsoft.com/en-us/azure/data-explorer) connector.
 
 ## Apache Flink
 
