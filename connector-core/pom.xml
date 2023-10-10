@@ -4,11 +4,11 @@
     <parent>
         <groupId>com.microsoft.azure.kusto</groupId>
         <artifactId>flink-connector-kusto</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <version>${revision}</version>
     </parent>
     <packaging>jar</packaging>
     <artifactId>connector-core</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>${parent.version}</version>
     <name>Flink connector core</name>
     <url>http://maven.apache.org</url>
     <dependencies>

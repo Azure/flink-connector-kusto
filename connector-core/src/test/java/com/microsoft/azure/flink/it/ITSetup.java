@@ -18,8 +18,8 @@ public class ITSetup {
     String appKey = getProperty("appKey", "", false);
     String authority = getProperty("authority", "", false);
     String cluster = getProperty("cluster", "", false);
-    return KustoConnectionOptions.builder().withAppId(appId).withAppKey(appKey).withTenantId(authority)
-        .withClusterUrl(cluster).build();
+    return KustoConnectionOptions.builder().withAppId(appId).withAppKey(appKey)
+        .withTenantId(authority).withClusterUrl(cluster).build();
   }
 
   public synchronized static KustoConnectionOptions getConnectorPropertiesWithCustomRetries(
@@ -28,8 +28,8 @@ public class ITSetup {
     String appKey = getProperty("appKey", "", false);
     String authority = getProperty("authority", "", false);
     String cluster = getProperty("cluster", "", false);
-    return KustoConnectionOptions.builder().withAppId(appId).withAppKey(appKey).withTenantId(authority)
-        .withRetryOptions(retryConfig).withClusterUrl(cluster).build();
+    return KustoConnectionOptions.builder().withAppId(appId).withAppKey(appKey)
+        .withTenantId(authority).withRetryOptions(retryConfig).withClusterUrl(cluster).build();
   }
 
 

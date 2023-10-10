@@ -4,7 +4,7 @@
     <parent>
         <groupId>com.microsoft.azure.kusto</groupId>
         <artifactId>flink-connector-kusto</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <version>${revision}</version>
     </parent>
     <artifactId>samples-java</artifactId>
     <packaging>jar</packaging>
@@ -14,7 +14,7 @@
         <dependency>
             <groupId>com.microsoft.azure.kusto</groupId>
             <artifactId>connector-core</artifactId>
-            <version>1.0-SNAPSHOT</version>
+            <version>${revision}</version>
             <type>jar</type>
         </dependency>
         <dependency>
