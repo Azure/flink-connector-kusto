@@ -20,7 +20,10 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: 'maven'
       - name: Run the Maven verify phase
-        run: mvn --batch-mode --update-snapshots -Dmaven.test.skip=true clean package javadoc:jar source:jar
+        run: |
+          cd connector-core
+          mvn --batch-mode --update-snapshots -Dmaven.test.skip=true clean package install javadoc:jar source:jar
+          cd ..
       - name: Get version
         id: get_version
         run: echo ::set-output name=VERSION::$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
@@ -29,7 +32,7 @@ jobs:
           version=${{ steps.get_version.outputs.VERSION }}
           mkdir staging
           cp connector-core/target/*.jar staging
-          cp connector-core/target/.flattened-pom.xml staging/flink-connector-kusto-$version.pom
+          cp connector-core/target/dependency-reduced-pom.xml staging/flink-connector-kusto-$version.pom
       - name: Github Release
         uses: anton-yurchenko/git-release@v5.0.1
         env:
