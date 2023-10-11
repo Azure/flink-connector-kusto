@@ -8,7 +8,7 @@
     </parent>
     <packaging>jar</packaging>
     <artifactId>flink-connector-kusto</artifactId>
-    <version>${parent.version}</version>
+    <version>${revision}</version>
     <name>Flink connector core</name>
     <url>http://maven.apache.org</url>
     <dependencies>
