@@ -1,0 +1,55 @@
+name: Deploy and Create Release
+on:
+  workflow_dispatch:
+  release:
+    types: [released]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [ '8' ]
+    name: Java ${{ matrix.java }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup java ${{ matrix.java }}
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: ${{ matrix.java }}
+          cache: 'maven'
+      - name: Run the Maven verify phase
+        run: mvn --batch-mode --update-snapshots -Dmaven.test.skip=true clean package javadoc:jar source:jar
+      - name: Get version
+        id: get_version
+        run: echo ::set-output name=VERSION::$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+      - name: Move artifacts to staging
+        run: |
+          version=${{ steps.get_version.outputs.VERSION }}
+          mkdir staging
+          cp connector-core/target/*.jar staging
+          cp connector-core/target/.flattened-pom.xml staging/flink-connector-kusto-$version.pom
+      - name: Github Release
+        uses: anton-yurchenko/git-release@v5.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: |
+            staging/flink-connector-kusto-${{ steps.get_version.outputs.VERSION }}.jar
+            staging/flink-connector-kusto-${{ steps.get_version.outputs.VERSION }}-shaded.jar
+            staging/flink-connector-kusto-${{ steps.get_version.outputs.VERSION }}-javadoc.jar
+            staging/flink-connector-kusto-${{ steps.get_version.outputs.VERSION }}-sources.jar
+            staging/flink-connector-kusto-${{ steps.get_version.outputs.VERSION }}.pom
+        continue-on-error: true
+      - name: Install AzCopy
+        uses: kheiakiyama/install-azcopy-action@v1
+        with:
+          version: 'v10'
+      - name: Upload to drops folder
+        env:
+          AZCOPY_SPA_CLIENT_SECRET: ${{ secrets.AZCOPY_SPA_CLIENT_SECRET }}
+        run: |
+          azcopy_v10 login --service-principal --application-id ${{ secrets.STORAGE_APP_ID }}
+          azcopy_v10 copy "staging/*" "https://azuresdkpartnerdrops.blob.core.windows.net/drops/kusto/flink/${{ steps.get_version.outputs.VERSION }}/"
+          azcopy_v10 logout
