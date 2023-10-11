@@ -3,11 +3,11 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.microsoft.azure.kusto</groupId>
-        <artifactId>flink-connector-kusto</artifactId>
+        <artifactId>flink-connector-kusto-parent</artifactId>
         <version>${revision}</version>
     </parent>
     <packaging>jar</packaging>
-    <artifactId>connector-core</artifactId>
+    <artifactId>flink-connector-kusto</artifactId>
     <version>${parent.version}</version>
     <name>Flink connector core</name>
     <url>http://maven.apache.org</url>
