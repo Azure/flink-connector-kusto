@@ -10,6 +10,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+      checks: write
+      pull-requests: write
     strategy:
       matrix:
         java: ['8']
@@ -32,4 +37,4 @@ jobs:
             connector-core/target/failsafe-reports/TEST*.xml
             connector-core/target/surefire-reports/TEST*.xml
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
