@@ -7,6 +7,7 @@
         <version>${revision}</version>
     </parent>
     <packaging>jar</packaging>
+    <groupId>com.microsoft.azure.kusto</groupId>
     <artifactId>flink-connector-kusto</artifactId>
     <version>${revision}</version>
     <name>Flink connector core</name>
@@ -32,7 +33,6 @@
             <name>Microsoft</name>
         </developer>
     </developers>
-
     <dependencies>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
