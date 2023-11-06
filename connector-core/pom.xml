@@ -11,6 +11,28 @@
     <version>${revision}</version>
     <name>Flink connector core</name>
     <url>http://maven.apache.org</url>
+    <organization>
+        <name>Microsoft Azure</name>
+        <url>https://azure.microsoft.com</url>
+    </organization>
+    <licenses>
+        <license>
+            <name>Apache License (APACHE)</name>
+            <url>http://opensource.org/licenses/Apache</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+    <scm>
+        <url>https://github.com/Azure/flink-connector-kusto</url>
+        <connection>scm:git://github.com/Azure/flink-connector-kusto.git</connection>
+    </scm>
+    <developers>
+        <developer>
+            <id>microsoft</id>
+            <name>Microsoft</name>
+        </developer>
+    </developers>
+
     <dependencies>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

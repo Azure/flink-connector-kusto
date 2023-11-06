@@ -3,20 +3,40 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
   <groupId>com.microsoft.azure.kusto</groupId>
   <artifactId>flink-connector-kusto-parent</artifactId>
   <version>${revision}</version>
-  <name>flink-connector-kusto</name>
+  <name>Apache Flink sink for Azure Data Explorer</name>
+  <description>This package provides a Flink sink implementation to Azure Data Explorer, Synapse Data Explorer and Kusto workloads on Azure Fabric</description>
   <modules>
     <module>connector-core</module>
     <module>samples-java</module>
   </modules>
   <packaging>pom</packaging>
-
+  <organization>
+    <name>Microsoft Azure</name>
+    <url>https://azure.microsoft.com</url>
+  </organization>
+  <licenses>
+    <license>
+      <name>Apache License (APACHE)</name>
+      <url>http://opensource.org/licenses/Apache</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <scm>
+    <url>https://github.com/Azure/flink-connector-kusto</url>
+    <connection>scm:git://github.com/Azure/flink-connector-kusto.git</connection>
+  </scm>
+  <developers>
+    <developer>
+      <id>microsoft</id>
+      <name>Microsoft</name>
+    </developer>
+  </developers>
   <!-- Allow users to pass custom connector versions -->
   <properties>
-    <revision>1.0-SNAPSHOT</revision>
+    <revision>1.0.0</revision>
     <archunit.version>1.0.0</archunit.version>
     <assertj.version>3.24.2</assertj.version>
     <azure.bom.version>1.2.14</azure.bom.version>
@@ -46,6 +66,7 @@
     <slf4j.version>1.7.36</slf4j.version>
     <woodstox.version>6.5.1</woodstox.version>
     <scala.binary.version>2.12</scala.binary.version>
+    <surefire.jacoco.args>-javaagent:${settings.localRepository}/org/jacoco/org.jacoco.agent/${jacoco.version}/org.jacoco.agent-${jacoco.version}-runtime.jar=destfile=${project.build.directory}/jacoco-output/jacoco-unit-tests.exec,append=true</surefire.jacoco.args>
   </properties>
 
 
@@ -416,7 +437,6 @@
           </dependency>
         </dependencies>
         <configuration>
-          <argLine>${failsafe.jacoco.args}</argLine>
           <forkCount>3</forkCount>
           <reuseForks>true</reuseForks>
           <argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>
