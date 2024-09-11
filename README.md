@@ -73,12 +73,8 @@ mvn clean install -DappId=<app-id> -Dcluster=<cluster> -DappKey=<app-key> -Dauth
 ```
 
 ## Pre-Compiled Libraries
-To facilitate ramp-up from local jar on platforms such as Azure Databricks, pre-compiled libraries
-are published under [GitHub Releases](https://github.com/Azure/flink-connector-kusto/releases).
-These libraries include:
-* Azure Data Explorer connector library
-* User may also need to include Kusto Java SDK libraries (kusto-data and kusto-ingest), which are published under
-  [GitHub Releases](https://github.com/Azure/azure-kusto-java/releases)
+Pre compiled libraries are published to maven for usage within flink applications. 
+The latest version can be found [here](https://search.maven.org/artifact/com.microsoft.azure.kusto/flink-connector-kusto)
 
 ## Dependencies
 Flink Kusto connector depends on [Azure Data Explorer Data Client Library](https://mvnrepository.com/artifact/com.microsoft.azure.kusto/kusto-data)

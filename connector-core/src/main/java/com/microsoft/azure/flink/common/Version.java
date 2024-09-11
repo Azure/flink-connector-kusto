@@ -7,7 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Version {
-  public static final String CLIENT_NAME = "Kusto.Flink.Sink";
+  public static final String CLIENT_NAME = "Flink.Sink";
   private static final Logger log = LoggerFactory.getLogger(Version.class);
   private static final String VERSION_FILE = "/azure-kusto-flink-version.properties";
   private static String version = "unknown";

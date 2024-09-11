@@ -59,7 +59,7 @@ public class KustoClientUtil {
   @SafeVarargs
   static private void setConnectorDetails(@NotNull ConnectionStringBuilder kcsb,
       Pair<String, String>... additionalOptions) {
-    kcsb.setConnectorDetails(Version.CLIENT_NAME, Version.getVersion(), null, null, false, null,
+    kcsb.setConnectorDetails(Version.CLIENT_NAME, Version.getVersion(), Version.CLIENT_NAME, Version.getVersion(), false, null,
         additionalOptions);
   }
 
