@@ -36,7 +36,7 @@
   </developers>
   <!-- Allow users to pass custom connector versions -->
   <properties>
-    <revision>1.0.0</revision>
+    <revision>1.0.1</revision>
     <archunit.version>1.0.0</archunit.version>
     <assertj.version>3.26.3</assertj.version>
     <azure.bom.version>1.2.14</azure.bom.version>
@@ -60,7 +60,6 @@
     <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
     <mvn.failsafe.plugin.version>3.0.0</mvn.failsafe.plugin.version>
     <mvn.shade.plugin.version>3.5.0</mvn.shade.plugin.version>
-    <netty.version>4.1.94.Final</netty.version>
     <objenesis.version>2.6</objenesis.version>
     <scala-library.version>2.12.7</scala-library.version>
     <slf4j.version>1.7.36</slf4j.version>
@@ -305,6 +304,13 @@
         <groupId>net.revelc.code</groupId>
         <artifactId>impsort-maven-plugin</artifactId>
         <version>${impsort.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.codehaus.plexus</groupId>
+            <artifactId>plexus-utils</artifactId>
+            <version>3.5.1</version>
+          </dependency>
+        </dependencies>
         <configuration>
           <groups>java.,javax.,org.,com.</groups>
           <removeUnused>true</removeUnused>

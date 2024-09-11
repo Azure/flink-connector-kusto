@@ -57,11 +57,9 @@ public class KustoWriteSinkWriterIT {
         && StringUtils.isNotEmpty(coordinates.getClusterUrl())) {
       LOG.error("Connecting to cluster: {}", coordinates.getClusterUrl());
       ConnectionStringBuilder engineCsb =
-          ConnectionStringBuilder.createWithAadApplicationCredentials(coordinates.getClusterUrl(),
-              coordinates.getAppId(), coordinates.getAppKey(), coordinates.getTenantId());
-      ConnectionStringBuilder dmCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
-          coordinates.getClusterUrl().replaceAll("https://", "https://ingest-"),
-          coordinates.getAppId(), coordinates.getAppKey(), coordinates.getTenantId());
+          ConnectionStringBuilder.createWithAzureCli(coordinates.getClusterUrl());
+      ConnectionStringBuilder dmCsb = ConnectionStringBuilder.createWithAzureCli(
+          coordinates.getClusterUrl().replaceAll("https://", "https://ingest-"));
       try {
         engineClient = ClientFactory.createClient(engineCsb);
         dmClient = ClientFactory.createClient(dmCsb);

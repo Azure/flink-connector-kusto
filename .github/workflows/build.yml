@@ -10,6 +10,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: build
     permissions:
       contents: read
       issues: read
@@ -20,6 +21,12 @@ jobs:
         java: ['8']
     name: Java ${{ matrix.java }}
     steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          tenant-id: ${{ secrets.AUTH_ID }}
+          subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
       - uses: actions/checkout@v2
       - name: Setup java ${{ matrix.java }}
         uses: actions/setup-java@v3
@@ -28,7 +35,7 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: 'maven'
       - name: Run tests
-        run: mvn clean compile test-compile formatter:validate test integration-test verify -DappId=${{ secrets.APP_ID }} -Dcluster=${{ secrets.CLUSTER_URL }} -DappKey=${{ secrets.APP_KEY }} -Dauthority=${{ secrets.TENANT_ID }} -Ddatabase=${{ secrets.DATABASE_NAME }} -Dlog4j2.configurationFile=/home/ram/workspace/flink-connector-kusto/connector-core/src/test/resources/log4j2.properties -U -am
+        run: mvn clean compile test-compile formatter:validate test integration-test verify -Dcluster=${{ secrets.CLUSTER_URL }} -Ddatabase=${{ secrets.DATABASE_NAME }} -U -am
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
