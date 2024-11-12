@@ -28,19 +28,19 @@ For Java applications using Maven project definitions, link your application wit
 ```
 groupId = com.microsoft.azure.kusto
 artifactId = flink-connector-kusto
-version = 1.0.0
+version = 1.0.2
 ```
 
 From maven central look for the following coordinates:
 ```
-com.microsoft.azure.kusto:flink-connector-kusto:1.0.0
+com.microsoft.azure.kusto:flink-connector-kusto:1.0.2
 ```
 (or)
 ```xml
 <dependency>
     <groupId>com.microsoft.azure.kusto</groupId>
     <artifactId>flink-connector-kusto</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.2</version>
 </dependency>
 ```
 Or clone this repository and build it locally to add it to your local maven repository using ```mvn clean install -DskipTests```
