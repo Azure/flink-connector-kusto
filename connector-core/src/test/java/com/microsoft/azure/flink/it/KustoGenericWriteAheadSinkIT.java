@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -52,8 +52,8 @@ public class KustoGenericWriteAheadSinkIT {
 
   @BeforeAll
   public static void setUp() {
-    ConnectionStringBuilder engineCsb = null;
-    ConnectionStringBuilder dmCsb = null;
+    ConnectionStringBuilder engineCsb;
+    ConnectionStringBuilder dmCsb;
     coordinates = getConnectorProperties();
     writeOptions = getWriteOptions();
     coordinates = getConnectorProperties();
@@ -100,7 +100,7 @@ public class KustoGenericWriteAheadSinkIT {
         TypeInformation.of(
             new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {});
     TypeSerializer<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> serializer =
-        typeInfo.createSerializer(new ExecutionConfig());
+        typeInfo.createSerializer(new SerializerConfigImpl());
     KustoCommitter kustoCommitter = new KustoCommitter(coordinates, writeOptions);
     kustoCommitter.open();
     KustoGenericWriteAheadSink<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> kustoGenericWriteAheadSink =
@@ -123,7 +123,6 @@ public class KustoGenericWriteAheadSinkIT {
   @Test
   public void testRowIngest() throws Exception {
     String typeKey = "FlinkRowTest";
-    ExecutionConfig config = new ExecutionConfig();
     TypeInformation<Row> rowTypeInformation = TypeInformation.of(new TypeHint<Row>() {});
     TypeSerializer<?>[] fieldSerializers = new TypeSerializer[8];
     TypeInformation<?>[] types = new TypeInformation[8];
@@ -136,7 +135,7 @@ public class KustoGenericWriteAheadSinkIT {
     types[6] = TypeInformation.of(new TypeHint<Long>() {});
     types[7] = TypeInformation.of(new TypeHint<String>() {});
     for (int i = 0; i < 8; i++) {
-      fieldSerializers[i] = types[i].createSerializer(config);
+      fieldSerializers[i] = types[i].createSerializer(new SerializerConfigImpl());
     }
     RowSerializer rowSerializer = new RowSerializer(fieldSerializers);
     KustoCommitter kustoCommitter = new KustoCommitter(coordinates, writeOptions);
@@ -170,7 +169,6 @@ public class KustoGenericWriteAheadSinkIT {
   @Test
   public void testCaseClassIngest() throws Exception {
     String typeKey = "FlinkCaseClassTest";
-    ExecutionConfig config = new ExecutionConfig();
     TypeInformation<Product> productTypeInformation =
         TypeInformation.of(new TypeHint<Product>() {});
     TypeSerializer<?>[] fieldSerializers = new TypeSerializer[8];
@@ -184,7 +182,7 @@ public class KustoGenericWriteAheadSinkIT {
     types[6] = TypeInformation.of(new TypeHint<Long>() {});
     types[7] = TypeInformation.of(new TypeHint<String>() {});
     for (int i = 0; i < 8; i++) {
-      fieldSerializers[i] = types[i].createSerializer(config);
+      fieldSerializers[i] = types[i].createSerializer(new SerializerConfigImpl());
     }
     KustoCommitter kustoCommitter = new KustoCommitter(coordinates, writeOptions);
     kustoCommitter.open();
@@ -212,14 +210,14 @@ public class KustoGenericWriteAheadSinkIT {
   @Test
   public void testPojoIngest() throws Exception {
     String typeKey = "FlinkPojoTest";
-    ExecutionConfig config = new ExecutionConfig();
     TypeInformation<TupleTestObject> typeInfo = TypeInformation.of(TupleTestObject.class);
     PojoTypeInfo<TupleTestObject> pojoTypeInfo = (PojoTypeInfo<TupleTestObject>) typeInfo;
     KustoCommitter kustoCommitter = new KustoCommitter(coordinates, writeOptions);
     kustoCommitter.open();
     KustoGenericWriteAheadSink<TupleTestObject> kustoGenericWriteAheadSink =
         new KustoGenericWriteAheadSink<>(coordinates, writeOptions, kustoCommitter,
-            pojoTypeInfo.createSerializer(config), pojoTypeInfo, UUID.randomUUID().toString());
+            pojoTypeInfo.createSerializer(new SerializerConfigImpl()), pojoTypeInfo,
+            UUID.randomUUID().toString());
     OneInputStreamOperatorTestHarness<TupleTestObject, ?> testHarness =
         new OneInputStreamOperatorTestHarness<>(kustoGenericWriteAheadSink);
     int maxRecords = 100;

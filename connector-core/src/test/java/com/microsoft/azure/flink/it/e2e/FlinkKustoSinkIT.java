@@ -183,8 +183,8 @@ public class FlinkKustoSinkIT {
     KustoTestUtil.refreshDm(dmClient, kustoWriteOptions);
     // send these records through the stream
     DataStream<TupleTestObject> stream =
-        envFail.fromCollection(dataToSend.values()).map(new FailingMapper(failed))
-            .uid("failing-mapper").name("failing-mapper").disableChaining();
+        envFail.fromData(dataToSend.values()).map(new FailingMapper(failed)).uid("failing-mapper")
+            .name("failing-mapper").disableChaining();
     KustoWriteSink.builder().setWriteOptions(kustoWriteOptions).setConnectionOptions(coordinates)
         .build(stream, 2);
     envFail.executeAsync().getJobExecutionResult().whenComplete((aVoid, ex) -> {

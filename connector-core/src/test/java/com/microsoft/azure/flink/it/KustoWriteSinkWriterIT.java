@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -43,12 +43,12 @@ public class KustoWriteSinkWriterIT {
           new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {});
 
   private final TypeSerializer<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> tuple8TypeSerializer =
-      tuple8TypeInformation.createSerializer(new ExecutionConfig());
+      tuple8TypeInformation.createSerializer(new SerializerConfigImpl());
 
   @BeforeAll
   public static void setUp() {
-    ConnectionStringBuilder engineCsb = null;
-    ConnectionStringBuilder dmCsb = null;
+    ConnectionStringBuilder engineCsb;
+    ConnectionStringBuilder dmCsb;
     coordinates = getConnectorProperties();
     writeOptions = getWriteOptions();
     coordinates = getConnectorProperties();
