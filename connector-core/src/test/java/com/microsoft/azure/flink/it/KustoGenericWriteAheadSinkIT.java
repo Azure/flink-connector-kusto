@@ -52,6 +52,8 @@ public class KustoGenericWriteAheadSinkIT {
 
   @BeforeAll
   public static void setUp() {
+    ConnectionStringBuilder engineCsb = null;
+    ConnectionStringBuilder dmCsb = null;
     coordinates = getConnectorProperties();
     writeOptions = getWriteOptions();
     coordinates = getConnectorProperties();
@@ -60,23 +62,25 @@ public class KustoGenericWriteAheadSinkIT {
         && StringUtils.isNotEmpty(coordinates.getTenantId())
         && StringUtils.isNotEmpty(coordinates.getClusterUrl())) {
       LOG.info("Connecting to cluster: {}", coordinates.getClusterUrl());
-      ConnectionStringBuilder engineCsb =
+      engineCsb =
           ConnectionStringBuilder.createWithAadApplicationCredentials(coordinates.getClusterUrl(),
               coordinates.getAppId(), coordinates.getAppKey(), coordinates.getTenantId());
-      ConnectionStringBuilder dmCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
+      dmCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
           coordinates.getClusterUrl().replaceAll("https://", "https://ingest-"),
           coordinates.getAppId(), coordinates.getAppKey(), coordinates.getTenantId());
-      try {
-        engineClient = ClientFactory.createClient(engineCsb);
-        dmClient = ClientFactory.createClient(dmCsb);
-        LOG.info("Creating tables in Kusto");
-        KustoTestUtil.createTables(engineClient, writeOptions);
-        KustoTestUtil.refreshDm(dmClient, writeOptions);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
     } else {
-      LOG.info("Skipping test due to missing configuration");
+      engineCsb = ConnectionStringBuilder.createWithAzureCli(coordinates.getClusterUrl());
+      dmCsb = ConnectionStringBuilder.createWithAzureCli(
+          coordinates.getClusterUrl().replaceAll("https://", "https://ingest-"));
+    }
+    try {
+      engineClient = ClientFactory.createClient(engineCsb);
+      dmClient = ClientFactory.createClient(dmCsb);
+      LOG.info("Creating tables in Kusto");
+      KustoTestUtil.createTables(engineClient, writeOptions);
+      KustoTestUtil.refreshDm(dmClient, writeOptions);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
 

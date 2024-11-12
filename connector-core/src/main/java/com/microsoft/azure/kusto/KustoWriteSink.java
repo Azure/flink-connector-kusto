@@ -2,7 +2,6 @@ package com.microsoft.azure.kusto;
 
 import java.util.UUID;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -23,7 +22,6 @@ import com.microsoft.azure.flink.writer.internal.committer.KustoCommitter;
 import com.microsoft.azure.flink.writer.internal.sink.KustoGenericWriteAheadSink;
 import com.microsoft.azure.flink.writer.internal.sink.KustoSink;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @PublicEvolving
@@ -74,10 +72,6 @@ public class KustoWriteSink {
    */
   protected void sanityCheck() {
     checkNotNull(this.connectionOptions, "Kusto connection options must be supplied.");
-    checkArgument(
-        StringUtils.isNotEmpty(this.connectionOptions.getAppId())
-            || StringUtils.isNotEmpty(this.connectionOptions.getManagedIdentityAppId()),
-        "Either AppId or ManagedIdentityAppId must be supplied.");
     checkNotNull(this.writeOptions, "Kusto write options must be supplied.");
     checkNotNull(this.writeOptions.getDatabase(),
         "Kusto write options should have database name specified");

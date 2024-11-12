@@ -47,6 +47,8 @@ public class KustoWriteSinkWriterIT {
 
   @BeforeAll
   public static void setUp() {
+    ConnectionStringBuilder engineCsb = null;
+    ConnectionStringBuilder dmCsb = null;
     coordinates = getConnectorProperties();
     writeOptions = getWriteOptions();
     coordinates = getConnectorProperties();
@@ -56,22 +58,27 @@ public class KustoWriteSinkWriterIT {
         && StringUtils.isNotEmpty(coordinates.getTenantId())
         && StringUtils.isNotEmpty(coordinates.getClusterUrl())) {
       LOG.error("Connecting to cluster: {}", coordinates.getClusterUrl());
-      ConnectionStringBuilder engineCsb =
-          ConnectionStringBuilder.createWithAzureCli(coordinates.getClusterUrl());
-      ConnectionStringBuilder dmCsb = ConnectionStringBuilder.createWithAzureCli(
-          coordinates.getClusterUrl().replaceAll("https://", "https://ingest-"));
-      try {
-        engineClient = ClientFactory.createClient(engineCsb);
-        dmClient = ClientFactory.createClient(dmCsb);
-        LOG.info("Creating tables in Kusto");
-        KustoTestUtil.createTables(engineClient, writeOptions);
-        KustoTestUtil.refreshDm(dmClient, writeOptions);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
+      engineCsb =
+          ConnectionStringBuilder.createWithAadApplicationCredentials(coordinates.getClusterUrl(),
+              coordinates.getAppId(), coordinates.getAppKey(), coordinates.getTenantId());
+      dmCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
+          coordinates.getClusterUrl().replaceAll("https://", "https://ingest-"),
+          coordinates.getAppId(), coordinates.getAppKey(), coordinates.getTenantId());
     } else {
-      LOG.info("Skipping test due to missing configuration");
+      engineCsb = ConnectionStringBuilder.createWithAzureCli(coordinates.getClusterUrl());
+      dmCsb = ConnectionStringBuilder.createWithAzureCli(
+          coordinates.getClusterUrl().replaceAll("https://", "https://ingest-"));
     }
+    try {
+      engineClient = ClientFactory.createClient(engineCsb);
+      dmClient = ClientFactory.createClient(dmCsb);
+      LOG.info("Creating tables in Kusto");
+      KustoTestUtil.createTables(engineClient, writeOptions);
+      KustoTestUtil.refreshDm(dmClient, writeOptions);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
   }
 
   @AfterAll
