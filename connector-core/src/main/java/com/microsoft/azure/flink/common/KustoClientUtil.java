@@ -47,9 +47,11 @@ public class KustoClientUtil {
             ? ConnectionStringBuilder.createWithAadManagedIdentity(connectionOptions.getIngestUrl())
             : ConnectionStringBuilder.createWithAadManagedIdentity(connectionOptions.getIngestUrl(),
                 connectionOptions.getManagedIdentityAppId())
-        : ConnectionStringBuilder.createWithAadApplicationCredentials(
-            connectionOptions.getIngestUrl(), connectionOptions.getAppId(),
-            connectionOptions.getAppKey(), connectionOptions.getTenantId());
+        : connectionOptions.isAzCliAuth()
+            ? ConnectionStringBuilder.createWithAzureCli(connectionOptions.getIngestUrl())
+            : ConnectionStringBuilder.createWithAadApplicationCredentials(
+                connectionOptions.getIngestUrl(), connectionOptions.getAppId(),
+                connectionOptions.getAppKey(), connectionOptions.getTenantId());
     Pair<String, String> sinkTag = ImmutablePair.of("sinkType", sourceClass);
     Pair<String, String> clusterTypeTag = ImmutablePair.of("clusterType", clusterType);
     setConnectorDetails(kcsb, sinkTag, clusterTypeTag);
@@ -59,8 +61,8 @@ public class KustoClientUtil {
   @SafeVarargs
   static private void setConnectorDetails(@NotNull ConnectionStringBuilder kcsb,
       Pair<String, String>... additionalOptions) {
-    kcsb.setConnectorDetails(Version.CLIENT_NAME, Version.getVersion(), null, null, false, null,
-        additionalOptions);
+    kcsb.setConnectorDetails(Version.CLIENT_NAME, Version.getVersion(), Version.CLIENT_NAME,
+        Version.getVersion(), false, null, additionalOptions);
   }
 
   private static ConnectionStringBuilder getQueryKcsb(
@@ -71,9 +73,11 @@ public class KustoClientUtil {
                 .createWithAadManagedIdentity(connectionOptions.getClusterUrl())
             : ConnectionStringBuilder.createWithAadManagedIdentity(
                 connectionOptions.getClusterUrl(), connectionOptions.getManagedIdentityAppId())
-        : ConnectionStringBuilder.createWithAadApplicationCredentials(
-            connectionOptions.getClusterUrl(), connectionOptions.getAppId(),
-            connectionOptions.getAppKey(), connectionOptions.getTenantId());
+        : connectionOptions.isAzCliAuth()
+            ? ConnectionStringBuilder.createWithAzureCli(connectionOptions.getClusterUrl())
+            : ConnectionStringBuilder.createWithAadApplicationCredentials(
+                connectionOptions.getClusterUrl(), connectionOptions.getAppId(),
+                connectionOptions.getAppKey(), connectionOptions.getTenantId());
     Pair<String, String> sinkTag = ImmutablePair.of("sinkType", sourceClass);
     Pair<String, String> clusterTypeTag = ImmutablePair.of("clusterType", "queued");
     setConnectorDetails(kcsb, sinkTag, clusterTypeTag);

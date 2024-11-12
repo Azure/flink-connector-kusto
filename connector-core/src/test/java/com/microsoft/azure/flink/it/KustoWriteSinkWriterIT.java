@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -43,10 +43,12 @@ public class KustoWriteSinkWriterIT {
           new TypeHint<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>>() {});
 
   private final TypeSerializer<Tuple8<Integer, Double, String, Boolean, Double, String, Long, String>> tuple8TypeSerializer =
-      tuple8TypeInformation.createSerializer(new ExecutionConfig());
+      tuple8TypeInformation.createSerializer(new SerializerConfigImpl());
 
   @BeforeAll
   public static void setUp() {
+    ConnectionStringBuilder engineCsb;
+    ConnectionStringBuilder dmCsb;
     coordinates = getConnectorProperties();
     writeOptions = getWriteOptions();
     coordinates = getConnectorProperties();
@@ -56,24 +58,27 @@ public class KustoWriteSinkWriterIT {
         && StringUtils.isNotEmpty(coordinates.getTenantId())
         && StringUtils.isNotEmpty(coordinates.getClusterUrl())) {
       LOG.error("Connecting to cluster: {}", coordinates.getClusterUrl());
-      ConnectionStringBuilder engineCsb =
+      engineCsb =
           ConnectionStringBuilder.createWithAadApplicationCredentials(coordinates.getClusterUrl(),
               coordinates.getAppId(), coordinates.getAppKey(), coordinates.getTenantId());
-      ConnectionStringBuilder dmCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
+      dmCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
           coordinates.getClusterUrl().replaceAll("https://", "https://ingest-"),
           coordinates.getAppId(), coordinates.getAppKey(), coordinates.getTenantId());
-      try {
-        engineClient = ClientFactory.createClient(engineCsb);
-        dmClient = ClientFactory.createClient(dmCsb);
-        LOG.info("Creating tables in Kusto");
-        KustoTestUtil.createTables(engineClient, writeOptions);
-        KustoTestUtil.refreshDm(dmClient, writeOptions);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
     } else {
-      LOG.info("Skipping test due to missing configuration");
+      engineCsb = ConnectionStringBuilder.createWithAzureCli(coordinates.getClusterUrl());
+      dmCsb = ConnectionStringBuilder.createWithAzureCli(
+          coordinates.getClusterUrl().replaceAll("https://", "https://ingest-"));
     }
+    try {
+      engineClient = ClientFactory.createClient(engineCsb);
+      dmClient = ClientFactory.createClient(dmCsb);
+      LOG.info("Creating tables in Kusto");
+      KustoTestUtil.createTables(engineClient, writeOptions);
+      KustoTestUtil.refreshDm(dmClient, writeOptions);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
   }
 
   @AfterAll

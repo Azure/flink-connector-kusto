@@ -7,6 +7,12 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment: build
+    permissions:
+      checks: write
+      pull-requests: write
+      id-token: write
+      contents: read
     strategy:
       matrix:
         java: [ '8' ]

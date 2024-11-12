@@ -22,6 +22,7 @@ public class KustoConnectionOptions implements Serializable {
   private final String appKey;
   private final String tenantId;
   private final boolean isManagedIdentity;
+  private final boolean isAzCliAuth;
   private final String managedIdentityAppId;
   private final KustoRetryConfig kustoRetryConfig;
 
@@ -32,6 +33,7 @@ public class KustoConnectionOptions implements Serializable {
     this.appKey = builder.appKey;
     this.tenantId = builder.tenantId;
     this.isManagedIdentity = builder.isManagedIdentity;
+    this.isAzCliAuth = builder.isAzCliAuth;
     this.managedIdentityAppId = builder.managedIdentityAppId;
     this.kustoRetryConfig = builder.kustoRetryConfig;
   }
@@ -58,6 +60,10 @@ public class KustoConnectionOptions implements Serializable {
 
   public boolean isManagedIdentity() {
     return isManagedIdentity;
+  }
+
+  public boolean isAzCliAuth() {
+    return isAzCliAuth;
   }
 
   public String getManagedIdentityAppId() {
@@ -105,6 +111,7 @@ public class KustoConnectionOptions implements Serializable {
     private String appKey;
     private String tenantId;
     private boolean isManagedIdentity = false;
+    private boolean isAzCliAuth = false;
     private String managedIdentityAppId;
     private KustoRetryConfig kustoRetryConfig = new KustoRetryConfig.Builder().build();
 
@@ -112,7 +119,7 @@ public class KustoConnectionOptions implements Serializable {
 
     /**
      * Sets the connection string of Kusto.
-     *
+     * 
      * @param clusterUrl connection string of Kusto
      * @return this builder
      */
@@ -133,6 +140,11 @@ public class KustoConnectionOptions implements Serializable {
 
     public Builder withTenantId(String tenantId) {
       this.tenantId = checkNotNull(tenantId, "The app key for auth must not be null");
+      return this;
+    }
+
+    public Builder withAzCliAuth() {
+      this.isAzCliAuth = true;
       return this;
     }
 

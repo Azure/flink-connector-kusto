@@ -65,26 +65,30 @@ public class FlinkKustoSinkIT {
     env.setRestartStrategy(RestartStrategies.noRestart());
     coordinates = getConnectorProperties();
     coordinates = getConnectorProperties();
+    ConnectionStringBuilder engineCsb;
+    ConnectionStringBuilder dmCsb;
     if (StringUtils.isNotEmpty(coordinates.getAppId())
         && StringUtils.isNotEmpty(coordinates.getAppKey())
         && StringUtils.isNotEmpty(coordinates.getTenantId())
         && StringUtils.isNotEmpty(coordinates.getClusterUrl())) {
       LOG.info("KustoSinkE2ETests : Connecting to cluster: {}", coordinates.getClusterUrl());
-      ConnectionStringBuilder engineCsb =
+      engineCsb =
           ConnectionStringBuilder.createWithAadApplicationCredentials(coordinates.getClusterUrl(),
               coordinates.getAppId(), coordinates.getAppKey(), coordinates.getTenantId());
-      ConnectionStringBuilder dmCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
+      dmCsb = ConnectionStringBuilder.createWithAadApplicationCredentials(
           coordinates.getClusterUrl().replaceAll("https://", "https://ingest-"),
           coordinates.getAppId(), coordinates.getAppKey(), coordinates.getTenantId());
-      try {
-        engineClient = ClientFactory.createClient(engineCsb);
-        dmClient = ClientFactory.createClient(dmCsb);
-        LOG.info("Creating tables for KustoSinkE2ETests");
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
     } else {
-      LOG.info("Skipping test due to missing configuration in KustoSinkE2ETests");
+      engineCsb = ConnectionStringBuilder.createWithAzureCli(coordinates.getClusterUrl());
+      dmCsb = ConnectionStringBuilder.createWithAzureCli(
+          coordinates.getClusterUrl().replaceAll("https://", "https://ingest-"));
+    }
+    try {
+      engineClient = ClientFactory.createClient(engineCsb);
+      dmClient = ClientFactory.createClient(dmCsb);
+      LOG.info("Creating tables for KustoSinkE2ETests");
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
 
@@ -110,7 +114,7 @@ public class FlinkKustoSinkIT {
       dataToSend.put(record.getVstr(), record);
     }
     // send these records through the stream
-    DataStream<TupleTestObject> stream = env.fromCollection(dataToSend.values());
+    DataStream<TupleTestObject> stream = env.fromData(dataToSend.values());
     KustoWriteSink.builder().setWriteOptions(kustoWriteOptions).setConnectionOptions(coordinates)
         .build(stream, 2);
     env.execute();
@@ -140,7 +144,7 @@ public class FlinkKustoSinkIT {
       dataToSend.put(record.getVstr(), record);
     }
     // send these records through the stream
-    DataStream<TupleTestObject> stream = env.fromCollection(dataToSend.values());
+    DataStream<TupleTestObject> stream = env.fromData(dataToSend.values());
     KustoWriteSink.builder().setWriteOptions(kustoWriteOptions).setConnectionOptions(coordinates)
         .buildWriteAheadSink(stream, 2);
     env.execute();
@@ -179,8 +183,8 @@ public class FlinkKustoSinkIT {
     KustoTestUtil.refreshDm(dmClient, kustoWriteOptions);
     // send these records through the stream
     DataStream<TupleTestObject> stream =
-        envFail.fromCollection(dataToSend.values()).map(new FailingMapper(failed))
-            .uid("failing-mapper").name("failing-mapper").disableChaining();
+        envFail.fromData(dataToSend.values()).map(new FailingMapper(failed)).uid("failing-mapper")
+            .name("failing-mapper").disableChaining();
     KustoWriteSink.builder().setWriteOptions(kustoWriteOptions).setConnectionOptions(coordinates)
         .build(stream, 2);
     envFail.executeAsync().getJobExecutionResult().whenComplete((aVoid, ex) -> {

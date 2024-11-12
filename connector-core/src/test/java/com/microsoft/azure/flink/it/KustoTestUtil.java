@@ -123,7 +123,7 @@ public class KustoTestUtil {
     return retry.executeSupplier(recordSearchSupplier);
   }
 
-  public static void createTables(Client engineClient, KustoWriteOptions writeOptions)
+  public static void createTables(Client engineClient, @NotNull KustoWriteOptions writeOptions)
       throws Exception {
     URL kqlResource = KustoWriteSinkWriterIT.class.getClassLoader().getResource("it-setup.kql");
     assert kqlResource != null;
@@ -141,7 +141,8 @@ public class KustoTestUtil {
     LOG.info("Created table {} and associated mappings", writeOptions.getTable());
   }
 
-  public static void refreshDm(Client dmClient, KustoWriteOptions writeOptions) throws Exception {
+  public static void refreshDm(Client dmClient, @NotNull KustoWriteOptions writeOptions)
+      throws Exception {
     URL kqlResource =
         KustoWriteSinkWriterIT.class.getClassLoader().getResource("policy-refresh.kql");
     assert kqlResource != null;

@@ -339,3 +339,6 @@ target/*
 /samples-java/src/main/resources/archetype-resources/
 /samples-java/src/main/resources/META-INF/maven/
 /.run/KustoGenericWriteAheadSinkIT.run.xml
+/connector-core/.flattened-pom.xml
+/samples-java/.flattened-pom.xml
+/.flattened-pom.xml
