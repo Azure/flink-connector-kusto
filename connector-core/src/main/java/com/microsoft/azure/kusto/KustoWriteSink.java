@@ -90,8 +90,7 @@ public class KustoWriteSink {
   private <IN> DataStreamSink<IN> sinkDataStream(@NotNull DataStream<IN> dataStream,
       int parallelism) {
     TypeInformation<IN> typeInfo = dataStream.getType();
-    TypeSerializer<IN> serializer =
-        typeInfo.createSerializer(new SerializerConfigImpl());
+    TypeSerializer<IN> serializer = typeInfo.createSerializer(new SerializerConfigImpl());
     boolean isSupportedType = typeInfo instanceof TupleTypeInfo || typeInfo instanceof RowTypeInfo
         || typeInfo instanceof CaseClassTypeInfo || typeInfo instanceof PojoTypeInfo;
     if (!isSupportedType) {
@@ -119,8 +118,7 @@ public class KustoWriteSink {
   public <IN> void buildWriteAheadSink(@NotNull DataStream<IN> dataStream, int parallelism)
       throws Exception {
     TypeInformation<IN> typeInfo = dataStream.getType();
-    TypeSerializer<IN> serializer =
-        typeInfo.createSerializer(new SerializerConfigImpl());
+    TypeSerializer<IN> serializer = typeInfo.createSerializer(new SerializerConfigImpl());
     boolean isSupportedType = typeInfo instanceof TupleTypeInfo || typeInfo instanceof RowTypeInfo
         || typeInfo instanceof CaseClassTypeInfo || typeInfo instanceof PojoTypeInfo;
     if (!isSupportedType) {
