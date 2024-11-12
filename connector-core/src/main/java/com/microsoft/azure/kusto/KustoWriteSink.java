@@ -3,6 +3,7 @@ package com.microsoft.azure.kusto;
 import java.util.UUID;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
@@ -90,7 +91,7 @@ public class KustoWriteSink {
       int parallelism) {
     TypeInformation<IN> typeInfo = dataStream.getType();
     TypeSerializer<IN> serializer =
-        typeInfo.createSerializer(dataStream.getExecutionEnvironment().getConfig());
+        typeInfo.createSerializer(new SerializerConfigImpl());
     boolean isSupportedType = typeInfo instanceof TupleTypeInfo || typeInfo instanceof RowTypeInfo
         || typeInfo instanceof CaseClassTypeInfo || typeInfo instanceof PojoTypeInfo;
     if (!isSupportedType) {
@@ -119,7 +120,7 @@ public class KustoWriteSink {
       throws Exception {
     TypeInformation<IN> typeInfo = dataStream.getType();
     TypeSerializer<IN> serializer =
-        typeInfo.createSerializer(dataStream.getExecutionEnvironment().getConfig());
+        typeInfo.createSerializer(new SerializerConfigImpl());
     boolean isSupportedType = typeInfo instanceof TupleTypeInfo || typeInfo instanceof RowTypeInfo
         || typeInfo instanceof CaseClassTypeInfo || typeInfo instanceof PojoTypeInfo;
     if (!isSupportedType) {

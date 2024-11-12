@@ -65,8 +65,8 @@ public class FlinkKustoSinkIT {
     env.setRestartStrategy(RestartStrategies.noRestart());
     coordinates = getConnectorProperties();
     coordinates = getConnectorProperties();
-    ConnectionStringBuilder engineCsb = null;
-    ConnectionStringBuilder dmCsb = null;
+    ConnectionStringBuilder engineCsb;
+    ConnectionStringBuilder dmCsb;
     if (StringUtils.isNotEmpty(coordinates.getAppId())
         && StringUtils.isNotEmpty(coordinates.getAppKey())
         && StringUtils.isNotEmpty(coordinates.getTenantId())
@@ -114,7 +114,7 @@ public class FlinkKustoSinkIT {
       dataToSend.put(record.getVstr(), record);
     }
     // send these records through the stream
-    DataStream<TupleTestObject> stream = env.fromCollection(dataToSend.values());
+    DataStream<TupleTestObject> stream = env.fromData(dataToSend.values());
     KustoWriteSink.builder().setWriteOptions(kustoWriteOptions).setConnectionOptions(coordinates)
         .build(stream, 2);
     env.execute();
@@ -144,7 +144,7 @@ public class FlinkKustoSinkIT {
       dataToSend.put(record.getVstr(), record);
     }
     // send these records through the stream
-    DataStream<TupleTestObject> stream = env.fromCollection(dataToSend.values());
+    DataStream<TupleTestObject> stream = env.fromData(dataToSend.values());
     KustoWriteSink.builder().setWriteOptions(kustoWriteOptions).setConnectionOptions(coordinates)
         .buildWriteAheadSink(stream, 2);
     env.execute();
