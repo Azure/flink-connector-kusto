@@ -1,7 +1,5 @@
 package com.microsoft.azure.kusto;
 
-import java.util.UUID;
-
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializerConfigImpl;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -19,9 +17,8 @@ import org.slf4j.LoggerFactory;
 
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
-import com.microsoft.azure.flink.writer.internal.committer.KustoCommitter;
-import com.microsoft.azure.flink.writer.internal.sink.KustoGenericWriteAheadSink;
 import com.microsoft.azure.flink.writer.internal.sink.KustoSink;
+import com.microsoft.azure.flink.writer.internal.sink.KustoTwoPhaseCommittingSink;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -126,15 +123,12 @@ public class KustoWriteSink {
           "No support for the type of the given DataStream: " + dataStream.getType());
     }
     sanityCheck();
-    LOG.info("Building GenericWriteAheadSink with WriteOptions: {} and ConnectionOptions {}",
+    LOG.info("Building TwoPhaseCommittingSink with WriteOptions: {} and ConnectionOptions {}",
         this.writeOptions.toString(), this.connectionOptions.toString());
-    KustoGenericWriteAheadSink<IN> genericSink =
-        new KustoGenericWriteAheadSink<>(this.connectionOptions, this.writeOptions,
-            new KustoCommitter(this.connectionOptions, this.writeOptions), serializer, typeInfo,
-            UUID.randomUUID().toString());
-    String operatorName = String.format("KustoGenericWriteAheadSink-%s-%s",
-        this.writeOptions.getDatabase(), this.writeOptions.getTable());
-    dataStream.transform(operatorName, typeInfo, genericSink).setParallelism(parallelism);
+    dataStream
+        .sinkTo(new KustoTwoPhaseCommittingSink<>(this.connectionOptions, this.writeOptions,
+            serializer, typeInfo))
+        .setParallelism(parallelism);
   }
 }
 
