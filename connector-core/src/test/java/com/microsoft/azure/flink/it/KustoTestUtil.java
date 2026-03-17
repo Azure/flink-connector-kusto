@@ -107,7 +107,7 @@ public class KustoTestUtil {
       try {
         LOG.warn("Executing query {} ", query);
         KustoResultSetTable resultSet =
-            engineClient.execute(writeOptions.getDatabase(), query).getPrimaryResults();
+            engineClient.executeQuery(writeOptions.getDatabase(), query).getPrimaryResults();
         Map<String, String> actualResults = new HashMap<>();
         while (resultSet.next()) {
           String key = resultSet.getString(KEY_COL);
@@ -133,7 +133,7 @@ public class KustoTestUtil {
         .collect(Collectors.toList());
     kqlsToExecute.forEach(kql -> {
       try {
-        engineClient.execute(writeOptions.getDatabase(), kql);
+        engineClient.executeMgmt(writeOptions.getDatabase(), kql);
       } catch (Exception e) {
         LOG.error("Failed to execute kql: {}", kql, e);
       }
@@ -151,7 +151,7 @@ public class KustoTestUtil {
         .map(kql -> kql.replace("DB", writeOptions.getDatabase())).collect(Collectors.toList());
     kqlsToExecute.forEach(kql -> {
       try {
-        dmClient.execute(kql);
+        dmClient.executeMgmt(kql);
       } catch (Exception e) {
         LOG.error("Failed to execute DM kql: {}", kql, e);
       }

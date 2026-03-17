@@ -124,7 +124,7 @@ public class FlinkKustoSinkIT {
     KustoTestUtil.performAssertions(engineClient, kustoWriteOptions, expectedResults, MAX_RECORDS,
         typeKey);
     // Clean up the tables
-    engineClient.execute(kustoWriteOptions.getDatabase(),
+    engineClient.executeMgmt(kustoWriteOptions.getDatabase(),
         String.format(".drop table %s", kustoWriteOptions.getTable()));
     LOG.info("Finished table clean up. Dropped table {}", kustoWriteOptions.getTable());
   }
@@ -154,7 +154,7 @@ public class FlinkKustoSinkIT {
     KustoTestUtil.performAssertions(engineClient, kustoWriteOptions, expectedResults, MAX_RECORDS,
         typeKey);
     // Clean up the tables
-    engineClient.execute(kustoWriteOptions.getDatabase(),
+    engineClient.executeMgmt(kustoWriteOptions.getDatabase(),
         String.format(".drop table %s", kustoWriteOptions.getTable()));
     LOG.info("Finished table clean up. Dropped table {}", kustoWriteOptions.getTable());
   }
@@ -196,7 +196,7 @@ public class FlinkKustoSinkIT {
             MAX_RECORDS, typeKey);
         // Clean up the tables
         try {
-          engineClient.execute(kustoWriteOptions.getDatabase(),
+          engineClient.executeMgmt(kustoWriteOptions.getDatabase(),
               String.format(".drop table %s", kustoWriteOptions.getTable()));
           LOG.info("Finished table clean up (recovery tests). Dropped table {}",
               kustoWriteOptions.getTable());

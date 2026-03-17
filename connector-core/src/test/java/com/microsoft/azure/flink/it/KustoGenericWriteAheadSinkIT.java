@@ -86,7 +86,7 @@ public class KustoGenericWriteAheadSinkIT {
 
   @AfterAll
   public static void tearDown() throws Exception {
-    engineClient.execute(writeOptions.getDatabase(),
+    engineClient.executeMgmt(writeOptions.getDatabase(),
         String.format(".drop table %s", writeOptions.getTable()));
     LOG.info("Finished table clean up. Dropped table {}", writeOptions.getTable());
     dmClient.close();

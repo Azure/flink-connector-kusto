@@ -83,7 +83,7 @@ public class KustoWriteSinkWriterIT {
 
   @AfterAll
   public static void tearDown() throws Exception {
-    engineClient.execute(writeOptions.getDatabase(),
+    engineClient.executeMgmt(writeOptions.getDatabase(),
         String.format(".drop table %s", writeOptions.getTable()));
     LOG.error("Finished table clean up. Dropped table {}", writeOptions.getTable());
     dmClient.close();
