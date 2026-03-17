@@ -24,7 +24,9 @@ import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
+import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.apache.flink.types.Row;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +57,11 @@ public class KustoPrecommittingSinkWriter<IN>
   private final List<IN> bufferedRecords = new ArrayList<>();
   private final Supplier<Integer> aritySupplier;
   private final BiFunction<IN, Integer, Object> extractFieldValueFunction;
+  private static final int HISTOGRAM_WINDOW_SIZE = 1000;
   private final Counter numRecordsOut;
+  private final Counter numBytesSend;
+  private final Counter blobsUploadedCounter;
+  private final Histogram blobUploadLatencyHistogram;
   private volatile boolean closed = false;
 
   public KustoPrecommittingSinkWriter(KustoConnectionOptions connectionOptions,
@@ -65,6 +71,10 @@ public class KustoPrecommittingSinkWriter<IN>
     this.writeOptions = checkNotNull(writeOptions);
     SinkWriterMetricGroup metricGroup = checkNotNull(initContext.metricGroup());
     this.numRecordsOut = metricGroup.getNumRecordsSendCounter();
+    this.numBytesSend = metricGroup.getNumBytesSendCounter();
+    this.blobsUploadedCounter = metricGroup.counter("blobsUploaded");
+    this.blobUploadLatencyHistogram = metricGroup.histogram("blobUploadLatencyMs",
+        new DescriptiveStatisticsHistogram(HISTOGRAM_WINDOW_SIZE));
 
     Class<?> clazzType = serializer.createInstance().getClass();
     if (Tuple.class.isAssignableFrom(clazzType)) {
@@ -114,6 +124,7 @@ public class KustoPrecommittingSinkWriter<IN>
     UUID sourceId = UUID.randomUUID();
     AtomicInteger idx = new AtomicInteger(0);
     long recordCount = 0;
+    long uploadStartTime = System.currentTimeMillis();
 
     try (BlobOutputMultiVolume compressedBlob =
         new BlobOutputMultiVolume(this.writeOptions.getClientBatchSizeLimit(), () -> {
@@ -130,7 +141,9 @@ public class KustoPrecommittingSinkWriter<IN>
         for (int i = 0; i < arity; i++) {
           Object fieldValue = this.extractFieldValueFunction.apply(value, i);
           if (fieldValue != null) {
-            compressedBlob.write(StringEscapeUtils.escapeCsv(fieldValue.toString()).getBytes());
+            byte[] csvBytes = StringEscapeUtils.escapeCsv(fieldValue.toString()).getBytes();
+            numBytesSend.inc(csvBytes.length);
+            compressedBlob.write(csvBytes);
           }
           if (i < arity - 1) {
             compressedBlob.write(",".getBytes());
@@ -144,6 +157,7 @@ public class KustoPrecommittingSinkWriter<IN>
               writeOptions.getTable(), sourceId, currentBlobIndex);
           committables.add(new KustoCommittable(uploadContainer.getEndpointWithoutSas(),
               uploadContainer.getSas(), completedBlobName, sourceId, recordCount));
+          blobsUploadedCounter.inc();
           recordCount = 0;
           currentBlobIndex = idx.get();
         }
@@ -156,9 +170,11 @@ public class KustoPrecommittingSinkWriter<IN>
           writeOptions.getTable(), sourceId, idx.get());
       committables.add(new KustoCommittable(uploadContainer.getEndpointWithoutSas(),
           uploadContainer.getSas(), finalBlobName, sourceId, recordCount));
+      blobsUploadedCounter.inc();
     }
 
     bufferedRecords.clear();
+    blobUploadLatencyHistogram.update(System.currentTimeMillis() - uploadStartTime);
     LOG.info("Prepared {} committable(s) for ingestion", committables.size());
     return committables;
   }
