@@ -1,9 +1,9 @@
 package com.microsoft.azure.flink.common;
 
 import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -52,15 +52,15 @@ public class KustoClientUtil {
             : ConnectionStringBuilder.createWithAadApplicationCredentials(
                 connectionOptions.getIngestUrl(), connectionOptions.getAppId(),
                 connectionOptions.getAppKey(), connectionOptions.getTenantId());
-    Pair<String, String> sinkTag = ImmutablePair.of("sinkType", sourceClass);
-    Pair<String, String> clusterTypeTag = ImmutablePair.of("clusterType", clusterType);
-    setConnectorDetails(kcsb, sinkTag, clusterTypeTag);
+    Map<String, String> additionalOptions = new HashMap<>();
+    additionalOptions.put("sinkType", sourceClass);
+    additionalOptions.put("clusterType", clusterType);
+    setConnectorDetails(kcsb, additionalOptions);
     return kcsb;
   }
 
-  @SafeVarargs
   static private void setConnectorDetails(@NotNull ConnectionStringBuilder kcsb,
-      Pair<String, String>... additionalOptions) {
+      Map<String, String> additionalOptions) {
     kcsb.setConnectorDetails(Version.CLIENT_NAME, Version.getVersion(), Version.CLIENT_NAME,
         Version.getVersion(), false, null, additionalOptions);
   }
@@ -78,9 +78,10 @@ public class KustoClientUtil {
             : ConnectionStringBuilder.createWithAadApplicationCredentials(
                 connectionOptions.getClusterUrl(), connectionOptions.getAppId(),
                 connectionOptions.getAppKey(), connectionOptions.getTenantId());
-    Pair<String, String> sinkTag = ImmutablePair.of("sinkType", sourceClass);
-    Pair<String, String> clusterTypeTag = ImmutablePair.of("clusterType", "queued");
-    setConnectorDetails(kcsb, sinkTag, clusterTypeTag);
+    Map<String, String> additionalOptions = new HashMap<>();
+    additionalOptions.put("sinkType", sourceClass);
+    additionalOptions.put("clusterType", "queued");
+    setConnectorDetails(kcsb, additionalOptions);
     return kcsb;
   }
 }

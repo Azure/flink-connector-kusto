@@ -94,8 +94,6 @@ public class FlinkKustoSinkIT {
 
   @AfterAll
   public static void tearDown() throws Exception {
-    dmClient.close();
-    engineClient.close();
     env.close();
   }
 

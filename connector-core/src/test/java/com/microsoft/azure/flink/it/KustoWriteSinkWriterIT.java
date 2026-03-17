@@ -86,8 +86,6 @@ public class KustoWriteSinkWriterIT {
     engineClient.executeMgmt(writeOptions.getDatabase(),
         String.format(".drop table %s", writeOptions.getTable()));
     LOG.error("Finished table clean up. Dropped table {}", writeOptions.getTable());
-    dmClient.close();
-    engineClient.close();
   }
 
   @Test

@@ -125,7 +125,6 @@ public class KustoCommitter extends CheckpointCommitter {
     this.lastCommittedCheckpoints.clear();
     try {
       this.streamingIngestClient.close();
-      this.queryClient.close();
     } catch (Exception e) {
       LOG.warn("Error while closing resources.", e);
       throw e;

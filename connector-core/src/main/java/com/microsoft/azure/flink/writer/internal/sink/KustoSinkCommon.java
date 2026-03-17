@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.azure.storage.blob.BlobContainerClient;
+import com.azure.storage.blob.BlobContainerClientBuilder;
 import com.microsoft.azure.flink.common.KustoClientUtil;
 import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.common.KustoRetryUtil;
@@ -198,7 +199,10 @@ public class KustoSinkCommon<IN> {
     ContainerProvider containerProvider =
         new ContainerProvider.Builder(this.connectionOptions).build();
     ContainerWithSas uploadContainerWithSas = containerProvider.getBlobContainer();
-    BlobContainerClient blobContainerClient = uploadContainerWithSas.getContainer();
+    BlobContainerClient blobContainerClient = new BlobContainerClientBuilder()
+        .endpoint(uploadContainerWithSas.getEndpointWithoutSas())
+        .sasToken(uploadContainerWithSas.getSas())
+        .buildClient();
     UUID sourceId = UUID.randomUUID();
     // Is a side effect. Can be a bit more polished, it is easier to send the total metric in one
     // go.

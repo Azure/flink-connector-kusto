@@ -39,7 +39,7 @@
     <revision>1.1.0</revision>
     <archunit.version>1.2.1</archunit.version>
     <assertj.version>3.27.7</assertj.version>
-    <azure.bom.version>1.3.0</azure.bom.version>
+    <azure.bom.version>1.3.3</azure.bom.version>
     <byte-buddy.version>1.15.10</byte-buddy.version>
     <commoncodec.version>1.17.1</commoncodec.version>
     <dependency-check-maven.version>8.1.2</dependency-check-maven.version>
@@ -47,14 +47,14 @@
     <flink.version>1.20.0</flink.version>
     <formatter.version>2.12.0</formatter.version>
     <impsort.version>1.6.0</impsort.version>
-    <jackson.version>2.17.0</jackson.version>
+    <jackson.version>2.21.0</jackson.version>
     <jacoco.version>0.8.12</jacoco.version>
     <java.source.version>11</java.source.version>
     <java.target.version>11</java.target.version>
     <jsonassert.version>1.5.1</jsonassert.version>
     <jsonsmart.version>2.5.0</jsonsmart.version>
     <junit5.version>5.11.0</junit5.version>
-    <kusto.sdk.version>5.2.0</kusto.sdk.version>
+    <kusto.sdk.version>7.0.6</kusto.sdk.version>
     <log4j.version>2.25.3</log4j.version>
     <mockito.version>5.14.2</mockito.version>
     <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
@@ -128,6 +128,13 @@
       <artifactId>jsr305</artifactId>
       <version>${findbugs.version}</version>
       <scope>provided</scope>
+    </dependency>
+
+    <!-- Retry support (was transitive via kusto-data 5.x, now explicit) -->
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-retry</artifactId>
+      <version>1.7.1</version>
     </dependency>
 
     <!-- Test dependencies -->
@@ -445,7 +452,7 @@
         <configuration>
           <forkCount>3</forkCount>
           <reuseForks>true</reuseForks>
-          <argLine>-Xmx1024m -XX:MaxPermSize=256m</argLine>
+          <argLine>-Xmx1024m</argLine>
           <includes>
             <include>**/*IT.java</include>
           </includes>

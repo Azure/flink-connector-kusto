@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.azure.storage.blob.BlobContainerClient;
+import com.azure.storage.blob.BlobContainerClientBuilder;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 import com.microsoft.azure.flink.writer.internal.ContainerProvider;
@@ -107,7 +108,10 @@ public class KustoPrecommittingSinkWriter<IN>
     ContainerProvider containerProvider =
         new ContainerProvider.Builder(this.connectionOptions).build();
     ContainerWithSas uploadContainer = containerProvider.getBlobContainer();
-    BlobContainerClient blobContainerClient = uploadContainer.getContainer();
+    BlobContainerClient blobContainerClient = new BlobContainerClientBuilder()
+        .endpoint(uploadContainer.getEndpointWithoutSas())
+        .sasToken(uploadContainer.getSas())
+        .buildClient();
     UUID sourceId = UUID.randomUUID();
     AtomicInteger idx = new AtomicInteger(0);
     long recordCount = 0;
