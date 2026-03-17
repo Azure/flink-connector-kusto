@@ -24,6 +24,7 @@ import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.common.KustoRetryUtil;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
+import com.microsoft.azure.kusto.ingest.ColumnMapping;
 import com.microsoft.azure.kusto.ingest.IngestClient;
 import com.microsoft.azure.kusto.ingest.IngestionMapping;
 import com.microsoft.azure.kusto.ingest.IngestionProperties;
@@ -47,15 +48,27 @@ public class KustoSinkCommitter implements Committer<KustoCommittable> {
   private final KustoConnectionOptions connectionOptions;
   private final KustoWriteOptions writeOptions;
   private final IngestClient ingestClient;
+  private final IngestionMapping pojoIngestionMapping;
   private final ScheduledExecutorService pollExecutor =
       Executors.newSingleThreadScheduledExecutor();
 
   public KustoSinkCommitter(KustoConnectionOptions connectionOptions,
-      KustoWriteOptions writeOptions) throws URISyntaxException {
+      KustoWriteOptions writeOptions, String[] pojoFieldNames) throws URISyntaxException {
     this.connectionOptions = checkNotNull(connectionOptions);
     this.writeOptions = checkNotNull(writeOptions);
     this.ingestClient = KustoClientUtil.createIngestClient(connectionOptions,
         KustoSinkCommitter.class.getSimpleName());
+    this.pojoIngestionMapping =
+        (pojoFieldNames != null) ? createPojoMapping(pojoFieldNames) : null;
+  }
+
+  private static IngestionMapping createPojoMapping(String[] pojoFields) {
+    ColumnMapping[] columnMappings = new ColumnMapping[pojoFields.length];
+    for (int i = 0; i < pojoFields.length; i++) {
+      columnMappings[i] = new ColumnMapping(pojoFields[i], null);
+      columnMappings[i].setOrdinal(i);
+    }
+    return new IngestionMapping(columnMappings, IngestionMapping.IngestionMappingKind.CSV);
   }
 
   @Override
@@ -105,6 +118,9 @@ public class KustoSinkCommitter implements Committer<KustoCommittable> {
         if (StringUtils.isNotEmpty(writeOptions.getIngestionMappingRef())) {
           ingestionProperties.setIngestionMapping(writeOptions.getIngestionMappingRef(),
               IngestionMapping.IngestionMappingKind.CSV);
+        }
+        if (pojoIngestionMapping != null) {
+          ingestionProperties.setIngestionMapping(pojoIngestionMapping);
         }
 
         return ingestClient.ingestFromBlob(blobSourceInfo, ingestionProperties);

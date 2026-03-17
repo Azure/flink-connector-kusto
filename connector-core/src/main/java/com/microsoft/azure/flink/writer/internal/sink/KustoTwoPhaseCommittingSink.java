@@ -10,6 +10,7 @@ import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.SupportsCommitter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,7 @@ public class KustoTwoPhaseCommittingSink<IN>
   private final KustoWriteOptions writeOptions;
   private final TypeSerializer<IN> serializer;
   private final TypeInformation<IN> typeInfo;
+  private final String[] pojoFieldNames;
 
   public KustoTwoPhaseCommittingSink(KustoConnectionOptions connectionOptions,
       KustoWriteOptions writeOptions, TypeSerializer<IN> serializer, TypeInformation<IN> typeInfo) {
@@ -47,6 +49,8 @@ public class KustoTwoPhaseCommittingSink<IN>
     this.writeOptions = checkNotNull(writeOptions);
     this.serializer = checkNotNull(serializer);
     this.typeInfo = checkNotNull(typeInfo);
+    this.pojoFieldNames =
+        (typeInfo instanceof PojoTypeInfo) ? ((PojoTypeInfo<?>) typeInfo).getFieldNames() : null;
   }
 
   @Override
@@ -68,7 +72,7 @@ public class KustoTwoPhaseCommittingSink<IN>
     LOG.info("Creating KustoSinkCommitter for DB {} in cluster {}", writeOptions.getDatabase(),
         connectionOptions.getClusterUrl());
     try {
-      return new KustoSinkCommitter(connectionOptions, writeOptions);
+      return new KustoSinkCommitter(connectionOptions, writeOptions, pojoFieldNames);
     } catch (Exception e) {
       throw new IOException("Failed to create KustoSinkCommitter", e);
     }
