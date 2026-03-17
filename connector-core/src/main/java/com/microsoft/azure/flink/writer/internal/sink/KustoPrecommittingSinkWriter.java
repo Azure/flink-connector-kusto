@@ -108,10 +108,9 @@ public class KustoPrecommittingSinkWriter<IN>
     ContainerProvider containerProvider =
         new ContainerProvider.Builder(this.connectionOptions).build();
     ContainerWithSas uploadContainer = containerProvider.getBlobContainer();
-    BlobContainerClient blobContainerClient = new BlobContainerClientBuilder()
-        .endpoint(uploadContainer.getEndpointWithoutSas())
-        .sasToken(uploadContainer.getSas())
-        .buildClient();
+    BlobContainerClient blobContainerClient =
+        new BlobContainerClientBuilder().endpoint(uploadContainer.getEndpointWithoutSas())
+            .sasToken(uploadContainer.getSas()).buildClient();
     UUID sourceId = UUID.randomUUID();
     AtomicInteger idx = new AtomicInteger(0);
     long recordCount = 0;

@@ -58,8 +58,7 @@ public class KustoSinkCommitter implements Committer<KustoCommittable> {
     this.writeOptions = checkNotNull(writeOptions);
     this.ingestClient = KustoClientUtil.createIngestClient(connectionOptions,
         KustoSinkCommitter.class.getSimpleName());
-    this.pojoIngestionMapping =
-        (pojoFieldNames != null) ? createPojoMapping(pojoFieldNames) : null;
+    this.pojoIngestionMapping = (pojoFieldNames != null) ? createPojoMapping(pojoFieldNames) : null;
   }
 
   private static IngestionMapping createPojoMapping(String[] pojoFields) {

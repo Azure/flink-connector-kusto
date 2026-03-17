@@ -199,10 +199,9 @@ public class KustoSinkCommon<IN> {
     ContainerProvider containerProvider =
         new ContainerProvider.Builder(this.connectionOptions).build();
     ContainerWithSas uploadContainerWithSas = containerProvider.getBlobContainer();
-    BlobContainerClient blobContainerClient = new BlobContainerClientBuilder()
-        .endpoint(uploadContainerWithSas.getEndpointWithoutSas())
-        .sasToken(uploadContainerWithSas.getSas())
-        .buildClient();
+    BlobContainerClient blobContainerClient =
+        new BlobContainerClientBuilder().endpoint(uploadContainerWithSas.getEndpointWithoutSas())
+            .sasToken(uploadContainerWithSas.getSas()).buildClient();
     UUID sourceId = UUID.randomUUID();
     // Is a side effect. Can be a bit more polished, it is easier to send the total metric in one
     // go.
