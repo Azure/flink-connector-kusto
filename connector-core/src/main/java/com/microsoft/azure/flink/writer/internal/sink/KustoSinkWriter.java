@@ -16,8 +16,8 @@ import org.apache.flink.api.common.functions.util.ListCollector;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -51,7 +51,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
 
   public KustoSinkWriter(KustoConnectionOptions connectionOptions, KustoWriteOptions writeOptions,
       @NotNull TypeSerializer<IN> serializer, @NotNull TypeInformation<IN> typeInformation,
-      boolean flushOnCheckpoint, Sink.InitContext initContext) throws URISyntaxException {
+      boolean flushOnCheckpoint, WriterInitContext initContext) throws URISyntaxException {
     this.writeOptions = checkNotNull(writeOptions);
     this.flushOnCheckpoint = flushOnCheckpoint;
     checkNotNull(initContext);
