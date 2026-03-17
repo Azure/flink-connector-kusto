@@ -70,7 +70,6 @@ public class BlobOutputMultiVolume extends OutputStream {
     out.write(b, off, remainingBytesInVol);
     switchOutput();
     this.write(b, off + remainingBytesInVol, len - remainingBytesInVol);
-    bytesInCurrentVolume += len - remainingBytesInVol;
   }
 
   private void switchOutput() throws IOException {

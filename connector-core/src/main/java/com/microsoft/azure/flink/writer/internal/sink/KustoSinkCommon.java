@@ -162,7 +162,6 @@ public class KustoSinkCommon<IN> {
         if (!this.writeOptions.getAdditionalTags().isEmpty()) {
           ingestionProperties.setAdditionalTags(this.writeOptions.getAdditionalTags());
         }
-        ingestionProperties.setIngestByTags(this.writeOptions.getIngestByTags());
         ingestionProperties
             .setReportLevel(IngestionProperties.IngestionReportLevel.FAILURES_AND_SUCCESSES);
         ingestionProperties.setDataFormat(IngestionProperties.DataFormat.CSV.name());
@@ -350,6 +349,11 @@ public class KustoSinkCommon<IN> {
   }
 
   protected void close() {
+    try {
+      pollResultsExecutor.shutdownNow();
+    } catch (Exception e) {
+      LOG.error("Error while shutting down poll executor.", e);
+    }
     try {
       if (ingestClient != null) {
         ingestClient.close();

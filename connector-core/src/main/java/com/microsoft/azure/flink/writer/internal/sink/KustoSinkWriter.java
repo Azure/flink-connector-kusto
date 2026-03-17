@@ -42,7 +42,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
   private final List<IN> bulkRequests = new ArrayList<>();
   private final Collector<IN> collector;
   private final Counter numRecordsOut;
-  private boolean checkpointInProgress = false;
+  private volatile boolean checkpointInProgress = false;
   private transient volatile boolean closed = false;
   private transient ScheduledExecutorService scheduler;
   private transient ScheduledFuture<?> scheduledFuture;
@@ -91,7 +91,8 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
   }
 
   @Override
-  public void write(IN element, Context context) throws IOException, InterruptedException {
+  public synchronized void write(IN element, Context context)
+      throws IOException, InterruptedException {
     checkFlushException();
     // do not allow new bulk writes until all actions are flushed
     while (checkpointInProgress) {
@@ -105,7 +106,7 @@ public class KustoSinkWriter<IN> implements SinkWriter<IN> {
   }
 
   @Override
-  public void flush(boolean endOfInput) throws IOException {
+  public synchronized void flush(boolean endOfInput) throws IOException {
     checkFlushException();
     checkpointInProgress = true;
     while (!bulkRequests.isEmpty() && (flushOnCheckpoint || endOfInput)) {
