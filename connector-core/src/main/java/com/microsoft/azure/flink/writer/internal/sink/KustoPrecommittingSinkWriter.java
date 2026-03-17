@@ -16,7 +16,7 @@ import org.apache.commons.text.StringEscapeUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink.PrecommittingSinkWriter;
+import org.apache.flink.api.connector.sink2.CommittingSinkWriter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.PojoTypeInfo;
@@ -46,7 +46,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class KustoPrecommittingSinkWriter<IN>
-    implements PrecommittingSinkWriter<IN, KustoCommittable> {
+    implements CommittingSinkWriter<IN, KustoCommittable> {
   private static final Logger LOG = LoggerFactory.getLogger(KustoPrecommittingSinkWriter.class);
 
   private final KustoConnectionOptions connectionOptions;

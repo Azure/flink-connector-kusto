@@ -6,8 +6,9 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.CommitterInitContext;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
-import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.slf4j.Logger;
@@ -25,9 +26,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Phase 2 (commit): The committer triggers Kusto ingestion from the uploaded blobs.
  *
  * <p>This replaces the deprecated {@code GenericWriteAheadSink}-based implementation.
+ * Uses {@link Sink} + {@link SupportsCommitter} instead of the deprecated
+ * {@code TwoPhaseCommittingSink}.
  */
 public class KustoTwoPhaseCommittingSink<IN>
-    implements TwoPhaseCommittingSink<IN, KustoCommittable> {
+    implements Sink<IN>, SupportsCommitter<KustoCommittable> {
   private static final Logger LOG = LoggerFactory.getLogger(KustoTwoPhaseCommittingSink.class);
   private static final long serialVersionUID = 1L;
 
@@ -50,8 +53,7 @@ public class KustoTwoPhaseCommittingSink<IN>
   }
 
   @Override
-  public PrecommittingSinkWriter<IN, KustoCommittable> createWriter(WriterInitContext context)
-      throws IOException {
+  public SinkWriter<IN> createWriter(WriterInitContext context) throws IOException {
     LOG.info("Creating KustoPrecommittingSinkWriter for DB {} in cluster {}",
         writeOptions.getDatabase(), connectionOptions.getClusterUrl());
     return new KustoPrecommittingSinkWriter<>(connectionOptions, writeOptions, serializer, typeInfo,
