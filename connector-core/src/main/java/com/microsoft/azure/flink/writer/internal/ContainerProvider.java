@@ -62,7 +62,8 @@ public class ContainerProvider implements Serializable {
   public synchronized ContainerWithSas getBlobContainer() {
     if (isCacheValid()) {
       int index = this.randomGenerator.nextInt(containerSasCache.size());
-      LOG.info("Returning storage from cache {}", containerSasCache.get(index).getEndpointWithoutSas());
+      LOG.info("Returning storage from cache {}",
+          containerSasCache.get(index).getEndpointWithoutSas());
       return containerSasCache.get(index);
     }
     return retry.executeSupplier(getContainerSupplier());

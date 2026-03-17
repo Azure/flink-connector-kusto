@@ -7,8 +7,8 @@ import org.apache.flink.annotation.Internal;
 
 /**
  * A committable representing a blob that has been written and needs to be ingested into Kusto. This
- * is the unit of work passed from the writer (phase 1) to the committer (phase 2) in the
- * two-phase commit protocol.
+ * is the unit of work passed from the writer (phase 1) to the committer (phase 2) in the two-phase
+ * commit protocol.
  */
 @Internal
 public class KustoCommittable implements Serializable {

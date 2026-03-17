@@ -290,8 +290,8 @@ public class KustoSinkCommon<IN> {
   protected CompletableFuture<String> pollForCompletion(String blobName, String sourceId,
       IngestionResult ingestionResult, Long ingestionStart) {
     CompletableFuture<String> completionFuture = new CompletableFuture<>();
-    long timeToEndPoll = Instant.now(Clock.systemUTC()).toEpochMilli()
-        + this.writeOptions.getPollTimeoutMs();
+    long timeToEndPoll =
+        Instant.now(Clock.systemUTC()).toEpochMilli() + this.writeOptions.getPollTimeoutMs();
     long pollIntervalSeconds = Math.max(1, this.writeOptions.getPollIntervalMs() / 1000);
     final ScheduledFuture<?> checkFuture = pollResultsExecutor.scheduleAtFixedRate(() -> {
       if (Instant.now(Clock.systemUTC()).toEpochMilli() > timeToEndPoll) {

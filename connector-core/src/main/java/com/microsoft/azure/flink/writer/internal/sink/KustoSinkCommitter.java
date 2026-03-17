@@ -72,7 +72,8 @@ public class KustoSinkCommitter implements Committer<KustoCommittable> {
         if (writeOptions.getPollForIngestionStatus()) {
           pollForCompletion(committable, result, request);
         } else {
-          LOG.debug("Ingestion triggered for blob {}. Polling disabled.", committable.getBlobName());
+          LOG.debug("Ingestion triggered for blob {}. Polling disabled.",
+              committable.getBlobName());
         }
       } catch (Exception e) {
         LOG.error("Failed to commit blob {}: {}", committable.getBlobName(), e.getMessage(), e);
@@ -138,9 +139,9 @@ public class KustoSinkCommitter implements Committer<KustoCommittable> {
                     Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart);
                 completionFuture.complete(status.status.name());
               } else if (status.status == OperationStatus.Failed) {
-                completionFuture.completeExceptionally(new RuntimeException(
-                    "Ingestion failed for blob " + committable.getBlobName() + ": "
-                        + status.getFailureStatus()));
+                completionFuture
+                    .completeExceptionally(new RuntimeException("Ingestion failed for blob "
+                        + committable.getBlobName() + ": " + status.getFailureStatus()));
               } else if (status.status == OperationStatus.PartiallySucceeded) {
                 LOG.warn("Ingestion partially succeeded for blob {}: {}", committable.getBlobName(),
                     status.getFailureStatus());

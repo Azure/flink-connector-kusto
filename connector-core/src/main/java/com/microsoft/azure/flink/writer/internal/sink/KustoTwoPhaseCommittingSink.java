@@ -22,11 +22,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * A Flink sink using the two-phase commit protocol for exactly-once delivery semantics.
  *
- * <p>Phase 1 (prepareCommit): The writer buffers records and uploads them to Azure Blob Storage.
- * Phase 2 (commit): The committer triggers Kusto ingestion from the uploaded blobs.
+ * <p>
+ * Phase 1 (prepareCommit): The writer buffers records and uploads them to Azure Blob Storage. Phase
+ * 2 (commit): The committer triggers Kusto ingestion from the uploaded blobs.
  *
- * <p>This replaces the deprecated {@code GenericWriteAheadSink}-based implementation.
- * Uses {@link Sink} + {@link SupportsCommitter} instead of the deprecated
+ * <p>
+ * This replaces the deprecated {@code GenericWriteAheadSink}-based implementation. Uses
+ * {@link Sink} + {@link SupportsCommitter} instead of the deprecated
  * {@code TwoPhaseCommittingSink}.
  */
 public class KustoTwoPhaseCommittingSink<IN>

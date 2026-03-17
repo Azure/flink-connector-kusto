@@ -135,8 +135,7 @@ public class KustoWriteOptions implements Serializable {
         + flushImmediately + ", batchIntervalMs=" + batchIntervalMs + ", batchSize=" + batchSize
         + ", clientBatchSizeLimit=" + clientBatchSizeLimit + ", ingestByTags=" + ingestByTags
         + ", additionalTags=" + additionalTags + ", deliveryGuarantee=" + deliveryGuarantee
-        + ", pollForIngestionStatus=" + pollForIngestionStatus
-        + ", pollTimeoutMs=" + pollTimeoutMs
+        + ", pollForIngestionStatus=" + pollForIngestionStatus + ", pollTimeoutMs=" + pollTimeoutMs
         + ", pollIntervalMs=" + pollIntervalMs + '}';
   }
 

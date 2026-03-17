@@ -137,8 +137,8 @@ public class KustoPrecommittingSinkWriter<IN>
         recordCount++;
         if (currentBlobIndex != idx.get()) {
           // Volume switched — emit committable for the completed blob
-          String completedBlobName = String.format("%s-%s-%s-%s.csv.gz",
-              writeOptions.getDatabase(), writeOptions.getTable(), sourceId, currentBlobIndex);
+          String completedBlobName = String.format("%s-%s-%s-%s.csv.gz", writeOptions.getDatabase(),
+              writeOptions.getTable(), sourceId, currentBlobIndex);
           committables.add(new KustoCommittable(uploadContainer.getEndpointWithoutSas(),
               uploadContainer.getSas(), completedBlobName, sourceId, recordCount));
           recordCount = 0;

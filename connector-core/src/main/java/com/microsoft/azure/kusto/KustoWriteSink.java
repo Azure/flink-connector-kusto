@@ -125,10 +125,8 @@ public class KustoWriteSink {
     sanityCheck();
     LOG.info("Building TwoPhaseCommittingSink with WriteOptions: {} and ConnectionOptions {}",
         this.writeOptions.toString(), this.connectionOptions.toString());
-    dataStream
-        .sinkTo(new KustoTwoPhaseCommittingSink<>(this.connectionOptions, this.writeOptions,
-            serializer, typeInfo))
-        .setParallelism(parallelism);
+    dataStream.sinkTo(new KustoTwoPhaseCommittingSink<>(this.connectionOptions, this.writeOptions,
+        serializer, typeInfo)).setParallelism(parallelism);
   }
 }
 
