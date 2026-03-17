@@ -36,34 +36,34 @@
   </developers>
   <!-- Allow users to pass custom connector versions -->
   <properties>
-    <revision>1.0.2</revision>
-    <archunit.version>1.0.0</archunit.version>
+    <revision>1.1.0</revision>
+    <archunit.version>1.2.1</archunit.version>
     <assertj.version>3.26.3</assertj.version>
-    <azure.bom.version>1.2.29</azure.bom.version>
+    <azure.bom.version>1.3.0</azure.bom.version>
     <byte-buddy.version>1.15.10</byte-buddy.version>
-    <commoncodec.version>1.15</commoncodec.version>
+    <commoncodec.version>1.17.1</commoncodec.version>
     <dependency-check-maven.version>8.1.2</dependency-check-maven.version>
     <findbugs.version>3.0.2</findbugs.version>
     <flink.version>1.20.0</flink.version>
     <formatter.version>2.12.0</formatter.version>
     <impsort.version>1.6.0</impsort.version>
-    <jackson.version>2.14.2</jackson.version>
-    <jacoco.version>0.8.7</jacoco.version>
-    <java.source.version>1.8</java.source.version>
-    <java.target.version>1.8</java.target.version>
+    <jackson.version>2.17.0</jackson.version>
+    <jacoco.version>0.8.12</jacoco.version>
+    <java.source.version>11</java.source.version>
+    <java.target.version>11</java.target.version>
     <jsonassert.version>1.5.1</jsonassert.version>
-    <jsonsmart.version>2.4.11</jsonsmart.version>
-    <junit5.version>5.8.1</junit5.version>
+    <jsonsmart.version>2.5.0</jsonsmart.version>
+    <junit5.version>5.11.0</junit5.version>
     <kusto.sdk.version>5.2.0</kusto.sdk.version>
-    <log4j.version>2.20.0</log4j.version>
+    <log4j.version>2.21.0</log4j.version>
     <mockito.version>5.14.2</mockito.version>
     <mvn.compiler.plugin.version>3.11.0</mvn.compiler.plugin.version>
-    <mvn.failsafe.plugin.version>3.0.0</mvn.failsafe.plugin.version>
+    <mvn.failsafe.plugin.version>3.5.2</mvn.failsafe.plugin.version>
     <mvn.shade.plugin.version>3.5.0</mvn.shade.plugin.version>
-    <objenesis.version>2.6</objenesis.version>
-    <scala-library.version>2.12.7</scala-library.version>
-    <slf4j.version>1.7.36</slf4j.version>
-    <woodstox.version>6.5.1</woodstox.version>
+    <objenesis.version>3.3</objenesis.version>
+    <scala-library.version>2.12.19</scala-library.version>
+    <slf4j.version>2.0.12</slf4j.version>
+    <woodstox.version>7.1.1</woodstox.version>
     <scala.binary.version>2.12</scala.binary.version>
     <surefire.jacoco.args>-javaagent:${settings.localRepository}/org/jacoco/org.jacoco.agent/${jacoco.version}/org.jacoco.agent-${jacoco.version}-runtime.jar=destfile=${project.build.directory}/jacoco-output/jacoco-unit-tests.exec,append=true</surefire.jacoco.args>
   </properties>
@@ -275,7 +275,7 @@
       <dependency>
         <groupId>org.junit.platform</groupId>
         <artifactId>junit-platform-commons</artifactId>
-        <version>1.8.2</version>
+        <version>1.11.0</version>
       </dependency>
     <dependency>
       <groupId>com.azure</groupId>

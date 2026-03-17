@@ -6,6 +6,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.sink2.CommitterInitContext;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -41,6 +42,11 @@ public class KustoTwoPhaseCommittingSink<IN>
     this.writeOptions = checkNotNull(writeOptions);
     this.serializer = checkNotNull(serializer);
     this.typeInfo = checkNotNull(typeInfo);
+  }
+
+  @Override
+  public SinkWriter<IN> createWriter(InitContext context) throws IOException {
+    return createWriter((WriterInitContext) context);
   }
 
   @Override

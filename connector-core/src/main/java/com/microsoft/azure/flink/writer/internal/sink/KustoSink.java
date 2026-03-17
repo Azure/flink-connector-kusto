@@ -1,5 +1,6 @@
 package com.microsoft.azure.flink.writer.internal.sink;
 
+import java.io.IOException;
 import java.net.URISyntaxException;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -15,9 +16,6 @@ import com.microsoft.azure.flink.config.KustoWriteOptions;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/*
-
- */
 public class KustoSink<IN> implements Sink<IN> {
   protected static final Logger LOG = LoggerFactory.getLogger(KustoSink.class);
 
@@ -33,6 +31,11 @@ public class KustoSink<IN> implements Sink<IN> {
     this.writeOptions = checkNotNull(writeOptions);
     this.serializer = checkNotNull(serializer);
     this.typeInfo = checkNotNull(typeInfo);
+  }
+
+  @Override
+  public SinkWriter<IN> createWriter(InitContext context) throws IOException {
+    return createWriter((WriterInitContext) context);
   }
 
   @Override
