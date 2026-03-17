@@ -5,7 +5,6 @@ import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -39,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.azure.storage.blob.BlobContainerClient;
+import com.azure.storage.blob.BlobContainerClientBuilder;
 import com.microsoft.azure.flink.common.KustoClientUtil;
 import com.microsoft.azure.flink.common.KustoRetryConfig;
 import com.microsoft.azure.flink.common.KustoRetryUtil;
@@ -162,7 +162,6 @@ public class KustoSinkCommon<IN> {
         if (!this.writeOptions.getAdditionalTags().isEmpty()) {
           ingestionProperties.setAdditionalTags(this.writeOptions.getAdditionalTags());
         }
-        ingestionProperties.setIngestByTags(this.writeOptions.getIngestByTags());
         ingestionProperties
             .setReportLevel(IngestionProperties.IngestionReportLevel.FAILURES_AND_SUCCESSES);
         ingestionProperties.setDataFormat(IngestionProperties.DataFormat.CSV.name());
@@ -200,7 +199,9 @@ public class KustoSinkCommon<IN> {
     ContainerProvider containerProvider =
         new ContainerProvider.Builder(this.connectionOptions).build();
     ContainerWithSas uploadContainerWithSas = containerProvider.getBlobContainer();
-    BlobContainerClient blobContainerClient = uploadContainerWithSas.getContainer();
+    BlobContainerClient blobContainerClient =
+        new BlobContainerClientBuilder().endpoint(uploadContainerWithSas.getEndpointWithoutSas())
+            .sasToken(uploadContainerWithSas.getSas()).buildClient();
     UUID sourceId = UUID.randomUUID();
     // Is a side effect. Can be a bit more polished, it is easier to send the total metric in one
     // go.
@@ -292,8 +293,9 @@ public class KustoSinkCommon<IN> {
   protected CompletableFuture<String> pollForCompletion(String blobName, String sourceId,
       IngestionResult ingestionResult, Long ingestionStart) {
     CompletableFuture<String> completionFuture = new CompletableFuture<>();
-    // TODO: Should this be configurable?
-    long timeToEndPoll = Instant.now(Clock.systemUTC()).plus(5, ChronoUnit.MINUTES).toEpochMilli();
+    long timeToEndPoll =
+        Instant.now(Clock.systemUTC()).toEpochMilli() + this.writeOptions.getPollTimeoutMs();
+    long pollIntervalSeconds = Math.max(1, this.writeOptions.getPollIntervalMs() / 1000);
     final ScheduledFuture<?> checkFuture = pollResultsExecutor.scheduleAtFixedRate(() -> {
       if (Instant.now(Clock.systemUTC()).toEpochMilli() > timeToEndPoll) {
         LOG.warn(
@@ -343,13 +345,17 @@ public class KustoSinkCommon<IN> {
         LOG.warn(errorMessage, e);
         completionFuture.completeExceptionally(new RuntimeException(errorMessage, e));
       }
-    }, 1, 5, TimeUnit.SECONDS); // TODO pick up from write options. Also CRP needs to be picked
-    // up
+    }, 1, pollIntervalSeconds, TimeUnit.SECONDS);
     completionFuture.whenComplete((result, thrown) -> checkFuture.cancel(true));
     return completionFuture;
   }
 
   protected void close() {
+    try {
+      pollResultsExecutor.shutdownNow();
+    } catch (Exception e) {
+      LOG.error("Error while shutting down poll executor.", e);
+    }
     try {
       if (ingestClient != null) {
         ingestClient.close();

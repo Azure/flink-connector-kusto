@@ -7,13 +7,11 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Supplier;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.PublicEvolving;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -38,17 +36,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * get a storage account that is cached and then is used to upload data to.
  */
 @Internal
-@PublicEvolving
 public class ContainerProvider implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(ContainerProvider.class);
   private static final long serialVersionUID = 1L;
   private final Random randomGenerator;
-  private static final List<ContainerWithSas> CONTAINER_SAS =
-      Collections.synchronizedList(new ArrayList<>());
+  private final List<ContainerWithSas> containerSasCache = new ArrayList<>();
   private long expirationTimestamp;
   private final KustoConnectionOptions connectionOptions;
   private final KustoRetryConfig kustoRetryConfig;
-  private static ContainerProvider containerProviderInstance;
   private transient final Retry retry;
 
   private ContainerProvider(KustoConnectionOptions connectionOptions,
@@ -59,32 +54,24 @@ public class ContainerProvider implements Serializable {
     retry = getRetries(kustoRetryConfig);
   }
 
-  private static synchronized ContainerProvider build(ContainerProvider.Builder builder) {
-    if (containerProviderInstance == null) {
-      containerProviderInstance = new ContainerProvider(checkNotNull(builder.connectionOptions),
-          checkNotNull(builder.kustoRetryConfig));
-    }
-    return containerProviderInstance;
-  }
-
   /**
    * Returns a container with SAS key to upload data to.
    * 
    * @return Container with SAS key to upload data to.
    */
-  public ContainerWithSas getBlobContainer() {
-    // Not expired and a double check the list is not empty
-    if (isCacheExpired()) {
-      int index = this.randomGenerator.nextInt(CONTAINER_SAS.size());
-      LOG.info("Returning storage from cache {}", CONTAINER_SAS.get(index).getEndpointWithoutSas());
-      return CONTAINER_SAS.get(index);
+  public synchronized ContainerWithSas getBlobContainer() {
+    if (isCacheValid()) {
+      int index = this.randomGenerator.nextInt(containerSasCache.size());
+      LOG.info("Returning storage from cache {}",
+          containerSasCache.get(index).getEndpointWithoutSas());
+      return containerSasCache.get(index);
     }
     return retry.executeSupplier(getContainerSupplier());
   }
 
-  private boolean isCacheExpired() {
+  private boolean isCacheValid() {
     return expirationTimestamp >= Instant.now(Clock.systemUTC()).toEpochMilli()
-        && !CONTAINER_SAS.isEmpty();
+        && !containerSasCache.isEmpty();
   }
 
   /**
@@ -99,27 +86,27 @@ public class ContainerProvider implements Serializable {
           checkNotNull(this.connectionOptions,
               "Connection options passed to DM client cannot be null."),
           ContainerProvider.class.getSimpleName())) {
-        CONTAINER_SAS.clear();
+        containerSasCache.clear();
         this.expirationTimestamp = Instant.now(Clock.systemUTC())
             .plus(kustoRetryConfig.getCacheExpirationSeconds(), ChronoUnit.SECONDS).toEpochMilli();
         LOG.info("Setting expiration timestamp to {}", this.expirationTimestamp);
         ingestClient.getResourceManager().getShuffledContainers().forEach(container -> {
           LOG.debug("Adding container post refresh {}", container.getEndpointWithoutSas());
-          CONTAINER_SAS.add(container);
+          containerSasCache.add(container);
         });
-        int index = this.randomGenerator.nextInt(CONTAINER_SAS.size());
-        return CONTAINER_SAS.get(index);
+        int index = this.randomGenerator.nextInt(containerSasCache.size());
+        return containerSasCache.get(index);
       } catch (IOException | URISyntaxException | IngestionClientException
           | IngestionServiceException e) {
         LOG.error("Failed to get temp storage container", e);
-        if (CONTAINER_SAS.isEmpty()) {
+        if (containerSasCache.isEmpty()) {
           throw new RuntimeException(e);
         } else {
           LOG.warn("Failed to get temp storage container. "
               + "To cover for transient failures, returning an existing container."
               + "If the SAS keys have expired, the flow will fail further in the flow", e);
-          int index = this.randomGenerator.nextInt(CONTAINER_SAS.size());
-          return CONTAINER_SAS.get(index);
+          int index = this.randomGenerator.nextInt(containerSasCache.size());
+          return containerSasCache.get(index);
         }
       }
     };
@@ -137,7 +124,6 @@ public class ContainerProvider implements Serializable {
   /**
    * Builder for ContainerProvider.
    */
-
   public static class Builder {
     private final KustoConnectionOptions connectionOptions;
     private final KustoRetryConfig kustoRetryConfig;
@@ -148,7 +134,7 @@ public class ContainerProvider implements Serializable {
     }
 
     public ContainerProvider build() {
-      return ContainerProvider.build(this);
+      return new ContainerProvider(checkNotNull(connectionOptions), checkNotNull(kustoRetryConfig));
     }
   }
 }

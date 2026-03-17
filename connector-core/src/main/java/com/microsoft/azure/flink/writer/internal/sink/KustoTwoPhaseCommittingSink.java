@@ -1,0 +1,85 @@
+package com.microsoft.azure.flink.writer.internal.sink;
+
+import java.io.IOException;
+
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.CommitterInitContext;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.SupportsCommitter;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
+import org.apache.flink.api.java.typeutils.PojoTypeInfo;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.microsoft.azure.flink.config.KustoConnectionOptions;
+import com.microsoft.azure.flink.config.KustoWriteOptions;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
+/**
+ * A Flink sink using the two-phase commit protocol for exactly-once delivery semantics.
+ *
+ * <p>
+ * Phase 1 (prepareCommit): The writer buffers records and uploads them to Azure Blob Storage. Phase
+ * 2 (commit): The committer triggers Kusto ingestion from the uploaded blobs.
+ *
+ * <p>
+ * This replaces the deprecated {@code GenericWriteAheadSink}-based implementation. Uses
+ * {@link Sink} + {@link SupportsCommitter} instead of the deprecated
+ * {@code TwoPhaseCommittingSink}.
+ */
+public class KustoTwoPhaseCommittingSink<IN>
+    implements Sink<IN>, SupportsCommitter<KustoCommittable> {
+  private static final Logger LOG = LoggerFactory.getLogger(KustoTwoPhaseCommittingSink.class);
+  private static final long serialVersionUID = 1L;
+
+  private final KustoConnectionOptions connectionOptions;
+  private final KustoWriteOptions writeOptions;
+  private final TypeSerializer<IN> serializer;
+  private final TypeInformation<IN> typeInfo;
+  private final String[] pojoFieldNames;
+
+  public KustoTwoPhaseCommittingSink(KustoConnectionOptions connectionOptions,
+      KustoWriteOptions writeOptions, TypeSerializer<IN> serializer, TypeInformation<IN> typeInfo) {
+    this.connectionOptions = checkNotNull(connectionOptions);
+    this.writeOptions = checkNotNull(writeOptions);
+    this.serializer = checkNotNull(serializer);
+    this.typeInfo = checkNotNull(typeInfo);
+    this.pojoFieldNames =
+        (typeInfo instanceof PojoTypeInfo) ? ((PojoTypeInfo<?>) typeInfo).getFieldNames() : null;
+  }
+
+  @Override
+  public SinkWriter<IN> createWriter(InitContext context) throws IOException {
+    return createWriter((WriterInitContext) context);
+  }
+
+  @Override
+  public SinkWriter<IN> createWriter(WriterInitContext context) throws IOException {
+    LOG.info("Creating KustoPrecommittingSinkWriter for DB {} in cluster {}",
+        writeOptions.getDatabase(), connectionOptions.getClusterUrl());
+    return new KustoPrecommittingSinkWriter<>(connectionOptions, writeOptions, serializer, typeInfo,
+        context);
+  }
+
+  @Override
+  public Committer<KustoCommittable> createCommitter(CommitterInitContext context)
+      throws IOException {
+    LOG.info("Creating KustoSinkCommitter for DB {} in cluster {}", writeOptions.getDatabase(),
+        connectionOptions.getClusterUrl());
+    try {
+      return new KustoSinkCommitter(connectionOptions, writeOptions, pojoFieldNames);
+    } catch (Exception e) {
+      throw new IOException("Failed to create KustoSinkCommitter", e);
+    }
+  }
+
+  @Override
+  public SimpleVersionedSerializer<KustoCommittable> getCommittableSerializer() {
+    return new KustoCommittableSerializer();
+  }
+}

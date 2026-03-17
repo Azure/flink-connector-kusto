@@ -9,7 +9,6 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 
 import com.microsoft.azure.flink.common.KustoClientUtil;
@@ -26,7 +25,6 @@ import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
 import com.microsoft.azure.kusto.ingest.source.StreamSourceInfo;
 
 @Internal
-@PublicEvolving
 public class KustoCommitter extends CheckpointCommitter {
   private static final long serialVersionUID = 1L;
   private final KustoConnectionOptions connectionOptions;
@@ -82,9 +80,9 @@ public class KustoCommitter extends CheckpointCommitter {
             KustoCommitter.class.getSimpleName());
         LOG.info("Initialized queryClient in createResource and query client is null");
       }
-      queryClient.execute(this.kustoWriteOptions.getDatabase(), createCheckpointTable);
-      queryClient.execute(this.kustoWriteOptions.getDatabase(), enableStreaming);
-      queryClient.execute(this.kustoWriteOptions.getDatabase(), retentionPolicy);
+      queryClient.executeMgmt(this.kustoWriteOptions.getDatabase(), createCheckpointTable);
+      queryClient.executeMgmt(this.kustoWriteOptions.getDatabase(), enableStreaming);
+      queryClient.executeMgmt(this.kustoWriteOptions.getDatabase(), retentionPolicy);
     } catch (Exception e) {
       LOG.error(
           "Error while creating resources. To use the KustoCommitter you need to have admin privileges on the database {}",
@@ -127,7 +125,6 @@ public class KustoCommitter extends CheckpointCommitter {
     this.lastCommittedCheckpoints.clear();
     try {
       this.streamingIngestClient.close();
-      this.queryClient.close();
     } catch (Exception e) {
       LOG.warn("Error while closing resources.", e);
       throw e;
@@ -183,7 +180,7 @@ public class KustoCommitter extends CheckpointCommitter {
           this.table, this.jobId, this.operatorId, subtaskIdx, checkpointId);
       try {
         KustoOperationResult checkpoints =
-            queryClient.execute(this.kustoWriteOptions.getDatabase(), statement);
+            queryClient.executeQuery(this.kustoWriteOptions.getDatabase(), statement);
         if (checkpoints != null && checkpoints.getPrimaryResults() != null
             && !checkpoints.getPrimaryResults().getData().isEmpty()) {
           lastCommittedCheckpoint =

@@ -43,6 +43,8 @@ public class KustoWriteOptions implements Serializable {
   private final List<String> additionalTags;
   private final DeliveryGuarantee deliveryGuarantee;
   private final boolean pollForIngestionStatus;
+  private final long pollTimeoutMs;
+  private final long pollIntervalMs;
 
   private KustoWriteOptions(@NotNull Builder builder) {
     this.database = checkNotNull(builder.database);
@@ -59,6 +61,8 @@ public class KustoWriteOptions implements Serializable {
     this.additionalTags = builder.additionalTags;
     this.deliveryGuarantee = builder.deliveryGuarantee;
     this.pollForIngestionStatus = builder.pollForIngestionStatus;
+    this.pollTimeoutMs = builder.pollTimeoutMs;
+    this.pollIntervalMs = builder.pollIntervalMs;
   }
 
   public List<String> getIngestByTags() {
@@ -105,6 +109,14 @@ public class KustoWriteOptions implements Serializable {
     return pollForIngestionStatus;
   }
 
+  public long getPollTimeoutMs() {
+    return pollTimeoutMs;
+  }
+
+  public long getPollIntervalMs() {
+    return pollIntervalMs;
+  }
+
 
   @Override
   public int hashCode() {
@@ -123,7 +135,8 @@ public class KustoWriteOptions implements Serializable {
         + flushImmediately + ", batchIntervalMs=" + batchIntervalMs + ", batchSize=" + batchSize
         + ", clientBatchSizeLimit=" + clientBatchSizeLimit + ", ingestByTags=" + ingestByTags
         + ", additionalTags=" + additionalTags + ", deliveryGuarantee=" + deliveryGuarantee
-        + ", pollForIngestionStatus=" + pollForIngestionStatus + '}';
+        + ", pollForIngestionStatus=" + pollForIngestionStatus + ", pollTimeoutMs=" + pollTimeoutMs
+        + ", pollIntervalMs=" + pollIntervalMs + '}';
   }
 
   /** Builder for {@link KustoWriteOptions}. */
@@ -136,7 +149,9 @@ public class KustoWriteOptions implements Serializable {
     private long batchIntervalMs = 30000L; // 30 seconds
     private long batchSize = 1000L; // Or 1000 records
     private long clientBatchSizeLimit = 300 * 1024 * 1024; // Or 300 MB
-    private boolean pollForIngestionStatus = false; // Or 300 MB
+    private boolean pollForIngestionStatus = false;
+    private long pollTimeoutMs = 5 * 60 * 1000L; // 5 minutes
+    private long pollIntervalMs = 5000L; // 5 seconds
     private DeliveryGuarantee deliveryGuarantee = DeliveryGuarantee.AT_LEAST_ONCE;
 
     private List<String> ingestByTags = Collections.emptyList();
@@ -263,15 +278,33 @@ public class KustoWriteOptions implements Serializable {
     }
 
     /**
+     * Sets the maximum time in milliseconds to poll for ingestion completion.
+     *
+     * @param pollTimeoutMs the poll timeout in milliseconds (default: 300000 = 5 minutes)
+     * @return this builder
+     */
+    public KustoWriteOptions.Builder withPollTimeoutMs(long pollTimeoutMs) {
+      this.pollTimeoutMs = pollTimeoutMs;
+      return this;
+    }
+
+    /**
+     * Sets the interval in milliseconds between ingestion status polls.
+     *
+     * @param pollIntervalMs the poll interval in milliseconds (default: 5000 = 5 seconds)
+     * @return this builder
+     */
+    public KustoWriteOptions.Builder withPollIntervalMs(long pollIntervalMs) {
+      this.pollIntervalMs = pollIntervalMs;
+      return this;
+    }
+
+    /**
      * Builds a {@link KustoWriteOptions} instance.
      * 
      * @return a {@link KustoWriteOptions} instance
      */
     public KustoWriteOptions build() {
-      if (batchIntervalMs > 0 || batchSize > 0) {
-        LOG.warn(
-            "BatchInterval and BatchSize are applicable options only for SinkWriter and not applicable for GenericWriteAheadSink");
-      }
       return new KustoWriteOptions(this);
     }
   }

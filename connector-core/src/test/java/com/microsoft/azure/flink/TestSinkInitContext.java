@@ -12,7 +12,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -29,7 +29,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import org.jetbrains.annotations.NotNull;
 
 @Internal
-public class TestSinkInitContext implements Sink.InitContext {
+public class TestSinkInitContext implements WriterInitContext {
 
   private static final TestProcessingTimeService processingTimeService;
   private final MetricListener metricListener = new MetricListener();
