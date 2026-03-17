@@ -5,7 +5,6 @@ import java.io.OutputStream;
 import java.net.URISyntaxException;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -291,8 +290,9 @@ public class KustoSinkCommon<IN> {
   protected CompletableFuture<String> pollForCompletion(String blobName, String sourceId,
       IngestionResult ingestionResult, Long ingestionStart) {
     CompletableFuture<String> completionFuture = new CompletableFuture<>();
-    // TODO: Should this be configurable?
-    long timeToEndPoll = Instant.now(Clock.systemUTC()).plus(5, ChronoUnit.MINUTES).toEpochMilli();
+    long timeToEndPoll = Instant.now(Clock.systemUTC()).toEpochMilli()
+        + this.writeOptions.getPollTimeoutMs();
+    long pollIntervalSeconds = Math.max(1, this.writeOptions.getPollIntervalMs() / 1000);
     final ScheduledFuture<?> checkFuture = pollResultsExecutor.scheduleAtFixedRate(() -> {
       if (Instant.now(Clock.systemUTC()).toEpochMilli() > timeToEndPoll) {
         LOG.warn(
@@ -342,8 +342,7 @@ public class KustoSinkCommon<IN> {
         LOG.warn(errorMessage, e);
         completionFuture.completeExceptionally(new RuntimeException(errorMessage, e));
       }
-    }, 1, 5, TimeUnit.SECONDS); // TODO pick up from write options. Also CRP needs to be picked
-    // up
+    }, 1, pollIntervalSeconds, TimeUnit.SECONDS);
     completionFuture.whenComplete((result, thrown) -> checkFuture.cancel(true));
     return completionFuture;
   }

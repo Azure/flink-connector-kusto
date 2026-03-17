@@ -62,7 +62,7 @@ public class KustoWriteSink {
   public KustoWriteSink setWriteOptions(KustoWriteOptions writeOptions) {
     if (writeOptions == null) {
       throw new IllegalArgumentException(
-          "Connection options cannot be null. Please use KustoConnectionOptions.Builder() to create one.");
+          "Write options cannot be null. Please use KustoWriteOptions.Builder() to create one.");
     }
     this.writeOptions = writeOptions;
     return this;

@@ -1,7 +1,6 @@
 package com.microsoft.azure.flink.writer.internal.sink;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
@@ -11,7 +10,6 @@ import org.jetbrains.annotations.NotNull;
 import com.microsoft.azure.flink.config.KustoConnectionOptions;
 import com.microsoft.azure.flink.config.KustoWriteOptions;
 
-@PublicEvolving
 @Internal
 public class KustoGenericWriteAheadSink<IN> extends GenericWriteAheadSink<IN> {
   private final KustoConnectionOptions connectionOptions;

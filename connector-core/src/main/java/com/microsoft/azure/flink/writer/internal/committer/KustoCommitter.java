@@ -9,7 +9,6 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.runtime.operators.CheckpointCommitter;
 
 import com.microsoft.azure.flink.common.KustoClientUtil;
@@ -26,7 +25,6 @@ import com.microsoft.azure.kusto.ingest.exceptions.IngestionServiceException;
 import com.microsoft.azure.kusto.ingest.source.StreamSourceInfo;
 
 @Internal
-@PublicEvolving
 public class KustoCommitter extends CheckpointCommitter {
   private static final long serialVersionUID = 1L;
   private final KustoConnectionOptions connectionOptions;

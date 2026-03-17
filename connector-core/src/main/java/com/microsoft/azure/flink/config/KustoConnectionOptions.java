@@ -139,7 +139,7 @@ public class KustoConnectionOptions implements Serializable {
     }
 
     public Builder withTenantId(String tenantId) {
-      this.tenantId = checkNotNull(tenantId, "The app key for auth must not be null");
+      this.tenantId = checkNotNull(tenantId, "The tenant id for auth must not be null");
       return this;
     }
 
