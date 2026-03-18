@@ -60,12 +60,6 @@
       "text": "OTELMetrics\n| where MetricName startswith 'flink_taskmanager_job_task_operator_ingestionLatencyMs'\n| where Timestamp between (_startTime .. _endTime)\n| extend Stat = extract('ingestionLatencyMs[._](.*)', 1, MetricName)\n| where isnotempty(Stat)\n| extend Label = case(\n    Stat == '0.5', 'p50',\n    Stat == '0.75', 'p75',\n    Stat == '0.95', 'p95',\n    Stat == '0.99', 'p99',\n    Stat == '0.999', 'p999',\n    Stat == 'count', 'count',\n    Stat == 'Mean' or Stat == 'mean', 'mean',\n    Stat == 'Median' or Stat == 'median', 'p50',\n    Stat)\n| where Label !in ('count')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Label\n| order by Timestamp asc"
     },
     {
-      "id": "q-blob-upload-latency",
-      "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
-      "usedVariables": ["_startTime", "_endTime"],
-      "text": "OTELMetrics\n| where MetricName startswith 'flink_taskmanager_job_task_operator_blobUploadLatencyMs'\n| where Timestamp between (_startTime .. _endTime)\n| extend Stat = extract('blobUploadLatencyMs[._](.*)', 1, MetricName)\n| where isnotempty(Stat)\n| extend Label = case(\n    Stat == '0.5', 'p50',\n    Stat == '0.75', 'p75',\n    Stat == '0.95', 'p95',\n    Stat == '0.99', 'p99',\n    Stat == '0.999', 'p999',\n    Stat == 'count', 'count',\n    Stat == 'Mean' or Stat == 'mean', 'mean',\n    Stat == 'Median' or Stat == 'median', 'p50',\n    Stat)\n| where Label !in ('count')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Label\n| order by Timestamp asc"
-    },
-    {
       "id": "q-send-latency",
       "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
       "usedVariables": ["_startTime", "_endTime"],
@@ -144,20 +138,12 @@
       "layout": { "x": 0, "y": 12, "width": 12, "height": 6 }
     },
     {
-      "id": "t-blob-upload-latency",
-      "title": "Blob Upload Latency (ms)",
-      "pageId": "page-sink-metrics",
-      "queryId": "q-blob-upload-latency",
-      "visualType": "line",
-      "layout": { "x": 12, "y": 12, "width": 12, "height": 6 }
-    },
-    {
       "id": "t-send-latency",
       "title": "Current Send Time (ms)",
       "pageId": "page-sink-metrics",
       "queryId": "q-send-latency",
       "visualType": "line",
-      "layout": { "x": 0, "y": 18, "width": 12, "height": 6 }
+      "layout": { "x": 12, "y": 12, "width": 12, "height": 6 }
     },
     {
       "id": "t-status-tiles",

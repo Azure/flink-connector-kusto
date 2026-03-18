@@ -148,39 +148,14 @@
     },
     {
       "type": "timeseries",
-      "title": "Blob Upload Latency (ms)",
-      "description": "Blob upload and serialization latency histogram",
+      "title": "Current Send Time (ms)",
+      "description": "Time taken for the last blob upload and ingestion request",
       "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10, "pointSize": 5, "showPoints": "auto" },
-          "unit": "ms"
-        },
-        "overrides": []
-      },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "targets": [
-        {
-          "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
-          "rawMode": true,
-          "resultFormat": "time_series",
-          "query": "OTELMetrics\n| where MetricName startswith 'flink_taskmanager_job_task_operator_blobUploadLatencyMs'\n| where $__timeFilter(Timestamp)\n| extend Stat = extract('blobUploadLatencyMs[._](.*)', 1, MetricName)\n| where isnotempty(Stat)\n| extend Label = case(\n    Stat == '0.5', 'p50',\n    Stat == '0.75', 'p75',\n    Stat == '0.95', 'p95',\n    Stat == '0.99', 'p99',\n    Stat == '0.999', 'p999',\n    Stat == 'count', 'count',\n    Stat == 'Mean' or Stat == 'mean', 'mean',\n    Stat == 'Median' or Stat == 'median', 'p50',\n    Stat == 'StdDev' or Stat == 'stddev', 'stddev',\n    Stat == 'p95', 'p95',\n    Stat == 'p99', 'p99',\n    Stat)\n| where Label !in ('count', 'stddev')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Label\n| order by Timestamp asc",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Send Latency (Current Send Time)",
-      "description": "Current send time gauge from the Kusto sink writer",
-      "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
-      "fieldConfig": {
-        "defaults": {
           "color": { "mode": "fixed", "fixedColor": "orange" },
-          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 20, "pointSize": 5, "showPoints": "auto" },
+          "custom": { "drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10, "pointSize": 5, "showPoints": "auto" },
           "unit": "ms"
         },
         "overrides": []
