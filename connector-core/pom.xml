@@ -89,6 +89,11 @@
             <artifactId>json-smart</artifactId>
             <version>${jsonsmart.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.12.0</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -100,6 +105,180 @@
                     <configFile>${project.parent.basedir}/formatter.xml</configFile>
                     <encoding>UTF-8</encoding>
                     <lineEnding>KEEP</lineEnding>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <configuration>
+                    <relocations>
+                        <!-- Jackson — CRITICAL: Flink bundles an older Jackson in flink-dist -->
+                        <relocation>
+                            <pattern>com.fasterxml.jackson.core</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.fasterxml.jackson.core</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.fasterxml.jackson.databind</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.fasterxml.jackson.databind</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.fasterxml.jackson.annotation</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.fasterxml.jackson.annotation</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.fasterxml.jackson.dataformat</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.fasterxml.jackson.dataformat</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.fasterxml.jackson.datatype</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.fasterxml.jackson.datatype</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.fasterxml.jackson.module</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.fasterxml.jackson.module</shadedPattern>
+                        </relocation>
+                        <!-- Woodstox XML -->
+                        <relocation>
+                            <pattern>com.ctc.wstx</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.ctc.wstx</shadedPattern>
+                        </relocation>
+                        <!-- Azure SDK -->
+                        <relocation>
+                            <pattern>com.azure.core</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.azure.core</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.azure.json</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.azure.json</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.azure.xml</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.azure.xml</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.azure.storage</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.azure.storage</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.azure.identity</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.azure.identity</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.azure.security</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.azure.security</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.azure.data</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.azure.data</shadedPattern>
+                        </relocation>
+                        <!-- Netty -->
+                        <relocation>
+                            <pattern>io.netty</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.io.netty</shadedPattern>
+                        </relocation>
+                        <!-- Reactor -->
+                        <relocation>
+                            <pattern>reactor.core</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.reactor.core</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>reactor.netty</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.reactor.netty</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>reactor.util</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.reactor.util</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>reactor.adapter</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.reactor.adapter</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.reactivestreams</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.org.reactivestreams</shadedPattern>
+                        </relocation>
+                        <!-- Nimbus JOSE/JWT (auth) -->
+                        <relocation>
+                            <pattern>com.nimbusds</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.nimbusds</shadedPattern>
+                        </relocation>
+                        <!-- MSAL / AAD -->
+                        <relocation>
+                            <pattern>com.microsoft.aad</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.microsoft.aad</shadedPattern>
+                        </relocation>
+                        <!-- Google (Guava, etc.) -->
+                        <relocation>
+                            <pattern>com.google</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.com.google</shadedPattern>
+                        </relocation>
+                        <!-- Resilience4j -->
+                        <relocation>
+                            <pattern>io.github.resilience4j</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.io.github.resilience4j</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>io.vavr</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.io.vavr</shadedPattern>
+                        </relocation>
+                        <!-- Apache HTTP client -->
+                        <relocation>
+                            <pattern>org.apache.http</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.org.apache.http</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.apache.commons</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.org.apache.commons</shadedPattern>
+                        </relocation>
+                        <!-- JSON-smart -->
+                        <relocation>
+                            <pattern>net.minidev</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.net.minidev</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>net.jcip</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.net.jcip</shadedPattern>
+                        </relocation>
+                        <!-- Misc -->
+                        <relocation>
+                            <pattern>org.codehaus</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.org.codehaus</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.objectweb</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.org.objectweb</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.checkerframework</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.org.checkerframework</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.jetbrains</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.org.jetbrains</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>javax.annotation</pattern>
+                            <shadedPattern>${kusto.shade.prefix}.javax.annotation</shadedPattern>
+                        </relocation>
+                    </relocations>
+                    <transformers>
+                        <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                    </transformers>
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>module-info.class</exclude>
+                                <exclude>META-INF/*.SF</exclude>
+                                <exclude>META-INF/*.DSA</exclude>
+                                <exclude>META-INF/*.RSA</exclude>
+                                <exclude>META-INF/MANIFEST.MF</exclude>
+                                <exclude>META-INF/DEPENDENCIES</exclude>
+                                <exclude>META-INF/LICENSE*</exclude>
+                                <exclude>META-INF/NOTICE*</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
                 </configuration>
             </plugin>
         </plugins>
