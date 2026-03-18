@@ -3,13 +3,13 @@
 # Uses kafka-console-producer inside the running kafka container.
 #
 # Usage:
-#   ./produce-messages.sh              # default: 100 messages in batch mode
-#   ./produce-messages.sh 1000         # send 1000 messages
+#   ./produce-messages.sh              # default: 20000 messages in batch mode
+#   ./produce-messages.sh 50000        # send 50000 messages
 #   ./produce-messages.sh 100 1        # send 100 messages, 1 msg/sec (serial mode)
 
 set -euo pipefail
 
-MAX_MESSAGES="${1:-100}"
+MAX_MESSAGES="${1:-20000}"
 INTERVAL="${2:-0}"
 
 # Load topic name from .env
@@ -36,7 +36,7 @@ generate_batch() {
 if [ "${INTERVAL}" = "0" ]; then
     # Batch mode: generate all messages and pipe them in one shot
     echo "Producing ${MAX_MESSAGES} JSON messages to topic '${TOPIC}' (batch mode)..."
-    BATCH_SIZE=500
+    BATCH_SIZE=2000
     sent=0
     while [ "$sent" -lt "$MAX_MESSAGES" ]; do
         remaining=$((MAX_MESSAGES - sent))

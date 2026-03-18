@@ -2,15 +2,15 @@
 # One-shot quickstart: build, start, submit job, produce messages, and verify.
 #
 # Usage:
-#   ./run.sh              # full run with default 500 messages in 5 bursts
-#   ./run.sh 1000 10      # 1000 messages in 10 bursts
+#   ./run.sh              # full run with default 20000 messages in 5 bursts
+#   ./run.sh 50000 10     # 50000 messages in 10 bursts
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
 
-TOTAL_MESSAGES="${1:-500}"
+TOTAL_MESSAGES="${1:-20000}"
 NUM_BURSTS="${2:-5}"
 BURST_SIZE=$((TOTAL_MESSAGES / NUM_BURSTS))
 PAUSE_SECONDS=15

@@ -76,7 +76,7 @@ public class KafkaToKustoJob {
         .withAppKey(appKey).withTenantId(tenantId).withClusterUrl(clusterUrl).build();
 
     KustoWriteOptions writeOptions = KustoWriteOptions.builder().withDatabase(database)
-        .withTable(table).withBatchIntervalMs(30_000)
+        .withTable(table).withBatchIntervalMs(30_000).withBatchSize(20_000)
         .withDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE).build();
 
     KustoWriteSink.builder().setConnectionOptions(connectionOptions).setWriteOptions(writeOptions)
