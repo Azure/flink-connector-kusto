@@ -1,0 +1,102 @@
+# Docker Compose for Flink Kusto Connector Quickstart
+#
+# Architecture:
+#   Kafka (Strimzi KRaft) -> Flink (JobManager + TaskManager) -> Azure Data Explorer
+#
+# Usage:
+#   1. Copy .env.example to .env and fill in your Kusto credentials
+#   2. Build: ./build.sh
+#   3. Start: docker compose up -d
+#   4. Submit job: ./submit-job.sh
+#   5. Produce messages: ./produce-messages.sh
+#   6. View Flink UI: http://localhost:8081
+#
+# Ports exposed:
+#   - 29092: Kafka broker (external)
+#   - 8081:  Flink Web UI
+
+services:
+  # ---------------------------------------------------------------------------
+  # Kafka broker (Strimzi image, KRaft mode - no ZooKeeper needed)
+  # ---------------------------------------------------------------------------
+  kafka:
+    build:
+      context: .
+      dockerfile: Dockerfile.kafka
+    container_name: kafka
+    command:
+      - "sh"
+      - "-c"
+      - |
+        export CLUSTER_ID=$$(bin/kafka-storage.sh random-uuid) && \
+        bin/kafka-storage.sh format -t $$CLUSTER_ID -c config/kraft/server.properties && \
+        bin/kafka-server-start.sh config/kraft/server.properties \
+          --override advertised.listeners=PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092 \
+          --override listeners=PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093 \
+          --override listener.security.protocol.map=PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT \
+          --override inter.broker.listener.name=PLAINTEXT \
+          --override controller.listener.names=CONTROLLER \
+          --override controller.quorum.voters=1@kafka:9093 \
+          --override node.id=1 \
+          --override process.roles=broker,controller
+    ports:
+      - "29092:29092"
+    environment:
+      LOG_DIR: /tmp/logs
+    networks:
+      - flink-kusto-network
+    healthcheck:
+      test: ["CMD-SHELL", "bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Flink JobManager
+  # ---------------------------------------------------------------------------
+  jobmanager:
+    image: flink:1.20.0-java11
+    container_name: flink-jobmanager
+    command: jobmanager
+    ports:
+      - "8081:8081"
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        rest.address: 0.0.0.0
+        state.checkpoints.dir: file:///opt/flink/checkpoints
+        execution.checkpointing.interval: 60000
+    volumes:
+      - ./flink-job/target:/opt/flink-jobs:ro
+      - flink-checkpoints:/opt/flink/checkpoints
+    networks:
+      - flink-kusto-network
+
+  # ---------------------------------------------------------------------------
+  # Flink TaskManager
+  # ---------------------------------------------------------------------------
+  taskmanager:
+    image: flink:1.20.0-java11
+    container_name: flink-taskmanager
+    command: taskmanager
+    depends_on:
+      - jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        state.checkpoints.dir: file:///opt/flink/checkpoints
+    volumes:
+      - flink-checkpoints:/opt/flink/checkpoints
+    networks:
+      - flink-kusto-network
+
+networks:
+  flink-kusto-network:
+    driver: bridge
+
+volumes:
+  flink-checkpoints:

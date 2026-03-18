@@ -1,0 +1,28 @@
+// Kusto table setup for the Flink Docker quickstart.
+// Run these commands in your Azure Data Explorer database.
+//
+// Option 1: Run in Kusto Web Explorer (https://dataexplorer.azure.com)
+// Option 2: Run via Kusto CLI / SDK
+//
+// Replace 'FlinkQuickstart' with your table name if different.
+
+// Create the target table matching the JSON message schema
+.create table FlinkQuickstart (
+    id: int,
+    message_number: int,
+    sensor: string,
+    timestamp: string,
+    unit: string,
+    value: int
+)
+
+// Set a reasonable batching policy for the quickstart (ingest every 30 seconds)
+.alter table FlinkQuickstart policy ingestionbatching
+  '{ "MaximumBatchingTimeSpan": "00:00:30" }'
+
+// Verify the table was created
+FlinkQuickstart | count
+
+// After ingestion, query sample data with:
+// FlinkQuickstart | take 10
+// FlinkQuickstart | summarize count(), avg(value), min(value), max(value) by sensor

@@ -1,0 +1,3 @@
+# Kafka broker image in KRaft mode (no ZooKeeper).
+# Based on the Strimzi Kafka image for a lightweight, production-ready broker.
+FROM quay.io/strimzi/kafka:latest-kafka-3.7.0
