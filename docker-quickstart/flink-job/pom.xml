@@ -62,11 +62,12 @@
             <version>${flink.kafka.connector.version}</version>
         </dependency>
 
-        <!-- Kusto sink connector -->
+        <!-- Kusto sink connector (shaded JAR with all dependencies) -->
         <dependency>
             <groupId>com.microsoft.azure.kusto</groupId>
             <artifactId>flink-connector-kusto</artifactId>
             <version>${kusto.connector.version}</version>
+            <classifier>shaded</classifier>
         </dependency>
 
         <!-- Jackson for JSON deserialization -->
