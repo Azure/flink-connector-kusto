@@ -45,7 +45,7 @@
       "id": "q-ingestion-lifecycle",
       "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
       "usedVariables": ["_startTime", "_endTime"],
-      "text": "OTELMetrics\n| where MetricName in ('flink_taskmanager_job_task_operator_succeededIngestions', 'flink_taskmanager_job_task_operator_failedIngestions', 'flink_taskmanager_job_task_operator_partialSucceededIngestions', 'flink_taskmanager_job_task_operator_ingestionSucceeded', 'flink_taskmanager_job_task_operator_ingestionFailed')\n| where Timestamp between (_startTime .. _endTime)\n| extend Series = case(\n    MetricName has 'succeeded' or MetricName has 'Success', 'Successes',\n    MetricName has 'failed' or MetricName has 'Failed', 'Failures',\n    'Partial')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Series\n| order by Timestamp asc"
+      "text": "OTELMetrics\n| where MetricName in ('flink_taskmanager_job_task_operator_successfullyIngested', 'flink_taskmanager_job_task_operator_successfullyQueued', 'flink_taskmanager_job_task_operator_failedIngestions', 'flink_taskmanager_job_task_operator_partialSucceededIngestions', 'flink_taskmanager_job_task_operator_ingestionSucceeded', 'flink_taskmanager_job_task_operator_ingestionFailed')\n| where Timestamp between (_startTime .. _endTime)\n| extend Series = case(\n    MetricName has_any ('successfullyIngested', 'successfullyQueued', 'ingestionSucceeded'), 'Successes',\n    MetricName has_any ('fail', 'Failed', 'failedIngestions'), 'Failures',\n    'Partial')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Series\n| order by Timestamp asc"
     },
     {
       "id": "q-blobs-uploaded",
@@ -93,7 +93,7 @@
       "id": "q-status-tiles",
       "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
       "usedVariables": ["_startTime", "_endTime"],
-      "text": "OTELMetrics\n| where Timestamp between (_startTime .. _endTime)\n| where MetricName in (\n    'flink_taskmanager_job_task_operator_numRecordsSend',\n    'flink_taskmanager_job_task_operator_bytesSent',\n    'flink_taskmanager_job_task_operator_succeededIngestions',\n    'flink_taskmanager_job_task_operator_failedIngestions',\n    'flink_taskmanager_job_task_operator_blobsUploaded',\n    'flink_taskmanager_job_task_operator_ingestionSucceeded',\n    'flink_taskmanager_job_task_operator_ingestionFailed'\n)\n| summarize LatestValue=arg_max(Timestamp, MetricValue) by MetricName\n| project Metric=replace_string(replace_string(MetricName, 'flink_taskmanager_job_task_operator_', ''), '_', ' '), Value=MetricValue"
+      "text": "OTELMetrics\n| where Timestamp between (_startTime .. _endTime)\n| where MetricName in (\n    'flink_taskmanager_job_task_operator_numRecordsSend',\n    'flink_taskmanager_job_task_operator_bytesSent',\n    'flink_taskmanager_job_task_operator_successfullyIngested',\n    'flink_taskmanager_job_task_operator_successfullyQueued',\n    'flink_taskmanager_job_task_operator_failedIngestions',\n    'flink_taskmanager_job_task_operator_blobsUploaded',\n    'flink_taskmanager_job_task_operator_ingestionSucceeded',\n    'flink_taskmanager_job_task_operator_ingestionFailed'\n)\n| summarize LatestValue=arg_max(Timestamp, MetricValue) by MetricName\n| project Metric=replace_string(replace_string(MetricName, 'flink_taskmanager_job_task_operator_', ''), '_', ' '), Value=MetricValue"
     }
   ],
   "tiles": [

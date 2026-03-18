@@ -85,7 +85,7 @@
           "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
           "rawMode": true,
           "resultFormat": "time_series",
-          "query": "OTELMetrics\n| where MetricName in ('flink_taskmanager_job_task_operator_succeededIngestions', 'flink_taskmanager_job_task_operator_failedIngestions', 'flink_taskmanager_job_task_operator_partialSucceededIngestions', 'flink_taskmanager_job_task_operator_ingestionSucceeded', 'flink_taskmanager_job_task_operator_ingestionFailed')\n| where $__timeFilter(Timestamp)\n| extend Series = case(\n    MetricName has 'succeeded' or MetricName has 'Success', 'Successes',\n    MetricName has 'failed' or MetricName has 'Failed', 'Failures',\n    'Partial')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Series\n| order by Timestamp asc",
+          "query": "OTELMetrics\n| where MetricName in ('flink_taskmanager_job_task_operator_successfullyIngested', 'flink_taskmanager_job_task_operator_successfullyQueued', 'flink_taskmanager_job_task_operator_failedIngestions', 'flink_taskmanager_job_task_operator_partialSucceededIngestions', 'flink_taskmanager_job_task_operator_ingestionSucceeded', 'flink_taskmanager_job_task_operator_ingestionFailed')\n| where $__timeFilter(Timestamp)\n| extend Series = case(\n    MetricName has_any ('successfullyIngested', 'successfullyQueued', 'ingestionSucceeded'), 'Successes',\n    MetricName has_any ('fail', 'Failed', 'failedIngestions'), 'Failures',\n    'Partial')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Series\n| order by Timestamp asc",
           "refId": "A"
         }
       ]

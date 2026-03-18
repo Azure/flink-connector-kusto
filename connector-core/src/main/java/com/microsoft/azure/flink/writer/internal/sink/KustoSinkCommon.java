@@ -70,6 +70,7 @@ public class KustoSinkCommon<IN> {
   private final transient Counter ingestSucceededCounter;
   private final transient Counter ingestFailedCounter;
   private final transient Counter ingestPartiallyFailedCounter;
+  private final transient Counter successfullyQueuedCounter;
   private final transient Counter recordsSent;
   private final transient Counter bytesSentCounter;
   private final transient Counter blobsUploadedCounter;
@@ -94,9 +95,10 @@ public class KustoSinkCommon<IN> {
     this.ingestClient = KustoClientUtil.createIngestClient(checkNotNull(connectionOptions,
         "Connection options passed to ingest client cannot be null."), sourceClass);
     this.containerProvider = new ContainerProvider.Builder(connectionOptions).build();
-    this.ingestSucceededCounter = metricGroup.counter("succeededIngestions");
+    this.ingestSucceededCounter = metricGroup.counter("successfullyIngested");
     this.ingestFailedCounter = metricGroup.counter("failedIngestions");
     this.ingestPartiallyFailedCounter = metricGroup.counter("partialSucceededIngestions");
+    this.successfullyQueuedCounter = metricGroup.counter("successfullyQueued");
     this.recordsSent = metricGroup.counter("recordsSent");
     this.bytesSentCounter = metricGroup.counter("bytesSent");
     this.blobsUploadedCounter = metricGroup.counter("blobsUploaded");
@@ -296,7 +298,7 @@ public class KustoSinkCommon<IN> {
         long latencyMs = Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart;
         LOG.debug("Upload to blob successful, blob file {}. Queued in {} ms (not polling)", blobName,
             latencyMs);
-        this.ingestSucceededCounter.inc();
+        this.successfullyQueuedCounter.inc();
         this.ingestionLatencyHistogram.update(latencyMs);
         this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
         return true;
