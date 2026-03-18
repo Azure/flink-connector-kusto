@@ -69,7 +69,7 @@
       "id": "q-all-metrics",
       "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
       "usedVariables": ["_startTime", "_endTime"],
-      "text": "OTELMetrics\n| where MetricName startswith 'flink_taskmanager_job_task_operator_'\n| where Timestamp between (_startTime .. _endTime)\n| summarize LatestValue=arg_max(Timestamp, MetricValue) by MetricName\n| project MetricName, Value=MetricValue, LastUpdated=Timestamp\n| order by MetricName asc"
+      "text": "OTELMetrics\n| where MetricName startswith 'flink_taskmanager_job_task_operator_'\n| where Timestamp between (_startTime .. _endTime)\n| summarize LastUpdated=max(Timestamp), Value=max(MetricValue) by MetricName\n| order by MetricName asc"
     },
     {
       "id": "q-checkpoints",
@@ -93,7 +93,7 @@
       "id": "q-status-tiles",
       "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
       "usedVariables": ["_startTime", "_endTime"],
-      "text": "OTELMetrics\n| where Timestamp between (_startTime .. _endTime)\n| where MetricName in (\n    'flink_taskmanager_job_task_operator_numRecordsSend',\n    'flink_taskmanager_job_task_operator_bytesSent',\n    'flink_taskmanager_job_task_operator_successfullyIngested',\n    'flink_taskmanager_job_task_operator_successfullyQueued',\n    'flink_taskmanager_job_task_operator_failedIngestions',\n    'flink_taskmanager_job_task_operator_blobsUploaded',\n    'flink_taskmanager_job_task_operator_ingestionSucceeded',\n    'flink_taskmanager_job_task_operator_ingestionFailed'\n)\n| summarize LatestValue=arg_max(Timestamp, MetricValue) by MetricName\n| project Metric=replace_string(replace_string(MetricName, 'flink_taskmanager_job_task_operator_', ''), '_', ' '), Value=MetricValue"
+      "text": "OTELMetrics\n| where Timestamp between (_startTime .. _endTime)\n| where MetricName in (\n    'flink_taskmanager_job_task_operator_numRecordsSend',\n    'flink_taskmanager_job_task_operator_bytesSent',\n    'flink_taskmanager_job_task_operator_successfullyIngested',\n    'flink_taskmanager_job_task_operator_successfullyQueued',\n    'flink_taskmanager_job_task_operator_failedIngestions',\n    'flink_taskmanager_job_task_operator_blobsUploaded',\n    'flink_taskmanager_job_task_operator_ingestionSucceeded',\n    'flink_taskmanager_job_task_operator_ingestionFailed'\n)\n| summarize LastUpdated=max(Timestamp), Value=max(MetricValue) by MetricName\n| project Metric=replace_string(replace_string(MetricName, 'flink_taskmanager_job_task_operator_', ''), '_', ' '), Value, LastUpdated"
     }
   ],
   "tiles": [

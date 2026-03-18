@@ -263,7 +263,7 @@
           "datasource": { "type": "grafana-azure-data-explorer-datasource", "uid": "adx" },
           "rawMode": true,
           "resultFormat": "table",
-          "query": "OTELMetrics\n| where MetricName startswith 'flink_taskmanager_job_task_operator_'\n| where $__timeFilter(Timestamp)\n| summarize LatestValue=arg_max(Timestamp, MetricValue) by MetricName\n| project MetricName, Value=MetricValue, LastUpdated=Timestamp\n| order by MetricName asc",
+          "query": "OTELMetrics\n| where MetricName startswith 'flink_taskmanager_job_task_operator_'\n| where $__timeFilter(Timestamp)\n| summarize LastUpdated=max(Timestamp), Value=max(MetricValue) by MetricName\n| order by MetricName asc",
           "refId": "A"
         }
       ]
