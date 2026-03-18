@@ -57,13 +57,13 @@
       "id": "q-ingestion-latency",
       "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
       "usedVariables": ["_startTime", "_endTime"],
-      "text": "OTELMetrics\n| where MetricName startswith 'flink_taskmanager_job_task_operator_ingestionLatencyMs'\n| where Timestamp between (_startTime .. _endTime)\n| extend Stat = extract('ingestionLatencyMs_(.*)', 1, MetricName)\n| where Stat in ('Mean', 'Median', 'p95', 'p99')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Stat\n| order by Timestamp asc"
+      "text": "OTELMetrics\n| where MetricName startswith 'flink_taskmanager_job_task_operator_ingestionLatencyMs'\n| where Timestamp between (_startTime .. _endTime)\n| extend Stat = extract('ingestionLatencyMs[._](.*)', 1, MetricName)\n| where isnotempty(Stat)\n| extend Label = case(\n    Stat == '0.5', 'p50',\n    Stat == '0.75', 'p75',\n    Stat == '0.95', 'p95',\n    Stat == '0.99', 'p99',\n    Stat == '0.999', 'p999',\n    Stat == 'count', 'count',\n    Stat == 'Mean' or Stat == 'mean', 'mean',\n    Stat == 'Median' or Stat == 'median', 'p50',\n    Stat)\n| where Label !in ('count')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Label\n| order by Timestamp asc"
     },
     {
       "id": "q-blob-upload-latency",
       "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
       "usedVariables": ["_startTime", "_endTime"],
-      "text": "OTELMetrics\n| where MetricName startswith 'flink_taskmanager_job_task_operator_blobUploadLatencyMs'\n| where Timestamp between (_startTime .. _endTime)\n| extend Stat = extract('blobUploadLatencyMs_(.*)', 1, MetricName)\n| where Stat in ('Mean', 'Median', 'p95', 'p99')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Stat\n| order by Timestamp asc"
+      "text": "OTELMetrics\n| where MetricName startswith 'flink_taskmanager_job_task_operator_blobUploadLatencyMs'\n| where Timestamp between (_startTime .. _endTime)\n| extend Stat = extract('blobUploadLatencyMs[._](.*)', 1, MetricName)\n| where isnotempty(Stat)\n| extend Label = case(\n    Stat == '0.5', 'p50',\n    Stat == '0.75', 'p75',\n    Stat == '0.95', 'p95',\n    Stat == '0.99', 'p99',\n    Stat == '0.999', 'p999',\n    Stat == 'count', 'count',\n    Stat == 'Mean' or Stat == 'mean', 'mean',\n    Stat == 'Median' or Stat == 'median', 'p50',\n    Stat)\n| where Label !in ('count')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Label\n| order by Timestamp asc"
     },
     {
       "id": "q-send-latency",
