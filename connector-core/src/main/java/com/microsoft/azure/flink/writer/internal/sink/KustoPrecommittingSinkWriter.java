@@ -54,6 +54,7 @@ public class KustoPrecommittingSinkWriter<IN>
 
   private final KustoConnectionOptions connectionOptions;
   private final KustoWriteOptions writeOptions;
+  private final ContainerProvider containerProvider;
   private final List<IN> bufferedRecords = new ArrayList<>();
   private final Supplier<Integer> aritySupplier;
   private final BiFunction<IN, Integer, Object> extractFieldValueFunction;
@@ -69,6 +70,7 @@ public class KustoPrecommittingSinkWriter<IN>
       TypeInformation<IN> typeInformation, WriterInitContext initContext) {
     this.connectionOptions = checkNotNull(connectionOptions);
     this.writeOptions = checkNotNull(writeOptions);
+    this.containerProvider = new ContainerProvider.Builder(connectionOptions).build();
     SinkWriterMetricGroup metricGroup = checkNotNull(initContext.metricGroup());
     this.numRecordsOut = metricGroup.getNumRecordsSendCounter();
     this.numBytesSend = metricGroup.getNumBytesSendCounter();
@@ -115,9 +117,7 @@ public class KustoPrecommittingSinkWriter<IN>
         writeOptions.getDatabase(), writeOptions.getTable());
 
     List<KustoCommittable> committables = new ArrayList<>();
-    ContainerProvider containerProvider =
-        new ContainerProvider.Builder(this.connectionOptions).build();
-    ContainerWithSas uploadContainer = containerProvider.getBlobContainer();
+    ContainerWithSas uploadContainer = this.containerProvider.getBlobContainer();
     BlobContainerClient blobContainerClient =
         new BlobContainerClientBuilder().endpoint(uploadContainer.getEndpointWithoutSas())
             .sasToken(uploadContainer.getSas()).buildClient();

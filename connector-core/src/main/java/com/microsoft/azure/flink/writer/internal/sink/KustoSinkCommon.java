@@ -77,6 +77,7 @@ public class KustoSinkCommon<IN> {
   private final ScheduledExecutorService pollResultsExecutor =
       Executors.newSingleThreadScheduledExecutor();
   private transient final IngestClient ingestClient;
+  private final ContainerProvider containerProvider;
   private final KustoConnectionOptions connectionOptions;
   protected final transient Supplier<Integer> aritySupplier;
   protected final transient BiFunction<IN, Integer, Object> extractFieldValueFunction;
@@ -92,6 +93,7 @@ public class KustoSinkCommon<IN> {
     this.writeOptions = writeOptions;
     this.ingestClient = KustoClientUtil.createIngestClient(checkNotNull(connectionOptions,
         "Connection options passed to ingest client cannot be null."), sourceClass);
+    this.containerProvider = new ContainerProvider.Builder(connectionOptions).build();
     this.ingestSucceededCounter = metricGroup.counter("succeededIngestions");
     this.ingestFailedCounter = metricGroup.counter("failedIngestions");
     this.ingestPartiallyFailedCounter = metricGroup.counter("partialSucceededIngestions");
@@ -206,9 +208,7 @@ public class KustoSinkCommon<IN> {
     if (bulkRequests == null) {
       return true;
     }
-    ContainerProvider containerProvider =
-        new ContainerProvider.Builder(this.connectionOptions).build();
-    ContainerWithSas uploadContainerWithSas = containerProvider.getBlobContainer();
+    ContainerWithSas uploadContainerWithSas = this.containerProvider.getBlobContainer();
     BlobContainerClient blobContainerClient =
         new BlobContainerClientBuilder().endpoint(uploadContainerWithSas.getEndpointWithoutSas())
             .sasToken(uploadContainerWithSas.getSas()).buildClient();
