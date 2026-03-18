@@ -275,6 +275,24 @@ docker exec kafka bin/kafka-console-consumer.sh \
     --bootstrap-server localhost:9092 --topic sensor-readings --from-beginning --max-messages 5
 ```
 
+**"Unable to get ingestion resources" / timeout errors:**
+
+This means the Flink TaskManager can't reach the Kusto cluster. Verify:
+
+1. `KUSTO_CLUSTER_URL` in `.env` is the **engine URL** (e.g. `https://mycluster.eastus.kusto.windows.net`)
+   — the connector adds the `ingest-` prefix automatically
+2. Docker containers have outbound internet access:
+   ```bash
+   docker exec flink-taskmanager curl -sf https://mycluster.eastus.kusto.windows.net
+   ```
+3. The Service Principal has **Ingestor** role on the database
+4. If behind a corporate proxy/VPN, add DNS config to docker-compose:
+   ```yaml
+   taskmanager:
+     dns:
+       - 8.8.8.8
+   ```
+
 ## File Structure
 
 ```
