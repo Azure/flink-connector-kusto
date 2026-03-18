@@ -2,6 +2,12 @@
 #
 # Architecture:
 #   Kafka (Strimzi KRaft) -> Flink (JobManager + TaskManager) -> Azure Data Explorer
+#                                    |
+#                             Prometheus metrics (:9249)
+#                                    |
+#                             OTEL Collector -> Azure Data Explorer (metrics)
+#                                    |
+#                             Grafana Dashboard (:3000)
 #
 # Usage:
 #   1. Copy .env.example to .env and fill in your Kusto credentials
@@ -10,10 +16,13 @@
 #   4. Submit job: ./submit-job.sh
 #   5. Produce messages: ./produce-messages.sh
 #   6. View Flink UI: http://localhost:8081
+#   7. View Grafana: http://localhost:3000 (admin/admin)
 #
 # Ports exposed:
 #   - 29092: Kafka broker (external)
 #   - 8081:  Flink Web UI
+#   - 9249:  Flink Prometheus metrics
+#   - 3000:  Grafana dashboard
 
 services:
   # ---------------------------------------------------------------------------
@@ -53,7 +62,7 @@ services:
       start_period: 30s
 
   # ---------------------------------------------------------------------------
-  # Flink JobManager
+  # Flink JobManager with Prometheus metrics reporter
   # ---------------------------------------------------------------------------
   jobmanager:
     image: flink:1.20.0-java11
@@ -61,6 +70,7 @@ services:
     command: jobmanager
     ports:
       - "8081:8081"
+      - "9249:9249"
     environment:
       - |
         FLINK_PROPERTIES=
@@ -68,6 +78,8 @@ services:
         rest.address: 0.0.0.0
         state.checkpoints.dir: file:///opt/flink/checkpoints
         execution.checkpointing.interval: 60000
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: 9249
     volumes:
       - ./flink-job/target:/opt/flink-jobs:ro
       - flink-checkpoints:/opt/flink/checkpoints
@@ -75,7 +87,7 @@ services:
       - flink-kusto-network
 
   # ---------------------------------------------------------------------------
-  # Flink TaskManager
+  # Flink TaskManager with Prometheus metrics reporter
   # ---------------------------------------------------------------------------
   taskmanager:
     image: flink:1.20.0-java11
@@ -83,14 +95,66 @@ services:
     command: taskmanager
     depends_on:
       - jobmanager
+    ports:
+      - "9250:9249"
     environment:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 4
         state.checkpoints.dir: file:///opt/flink/checkpoints
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: 9249
     volumes:
       - flink-checkpoints:/opt/flink/checkpoints
+    networks:
+      - flink-kusto-network
+
+  # ---------------------------------------------------------------------------
+  # OpenTelemetry Collector Contrib
+  # Scrapes Prometheus metrics from Flink and exports to Azure Data Explorer
+  # ---------------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.146.0
+    container_name: otel-collector
+    depends_on:
+      - jobmanager
+      - taskmanager
+    volumes:
+      - ./otel-collector/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    environment:
+      - OTEL_KUSTO_CLUSTER_URL=${KUSTO_CLUSTER_URL}
+      - OTEL_KUSTO_DATABASE=${KUSTO_DATABASE}
+      - OTEL_KUSTO_METRICS_TABLE=${KUSTO_METRICS_TABLE:-OTELMetrics}
+      - OTEL_KUSTO_APP_ID=${KUSTO_APP_ID}
+      - OTEL_KUSTO_APP_KEY=${KUSTO_APP_KEY}
+      - OTEL_KUSTO_TENANT_ID=${KUSTO_TENANT_ID}
+    networks:
+      - flink-kusto-network
+
+  # ---------------------------------------------------------------------------
+  # Grafana with Azure Data Explorer plugin
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: grafana
+    depends_on:
+      - otel-collector
+    ports:
+      - "3000:3000"
+    environment:
+      GF_INSTALL_PLUGINS: grafana-azure-data-explorer-datasource
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GRAFANA_ADX_CLUSTER_URL: ${KUSTO_CLUSTER_URL}
+      GRAFANA_ADX_TENANT_ID: ${KUSTO_TENANT_ID}
+      GRAFANA_ADX_CLIENT_ID: ${KUSTO_APP_ID}
+      GRAFANA_ADX_CLIENT_SECRET: ${KUSTO_APP_KEY}
+      GRAFANA_ADX_DATABASE: ${KUSTO_DATABASE}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-storage:/var/lib/grafana
     networks:
       - flink-kusto-network
 
@@ -100,3 +164,4 @@ networks:
 
 volumes:
   flink-checkpoints:
+  grafana-storage:

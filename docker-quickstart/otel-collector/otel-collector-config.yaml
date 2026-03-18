@@ -1,0 +1,111 @@
+# OpenTelemetry Collector Contrib configuration.
+# Scrapes Prometheus metrics from Flink JobManager and TaskManager
+# and exports them to Azure Data Explorer (Kusto).
+
+receivers:
+  # Scrape Prometheus metrics from Flink's built-in Prometheus reporter
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: "flink-jobmanager"
+          scrape_interval: 15s
+          static_configs:
+            - targets: ["jobmanager:9249"]
+              labels:
+                service: "flink-jobmanager"
+        - job_name: "flink-taskmanager"
+          scrape_interval: 15s
+          static_configs:
+            - targets: ["taskmanager:9249"]
+              labels:
+                service: "flink-taskmanager"
+
+processors:
+  # Batch metrics before exporting to reduce API calls
+  batch:
+    send_batch_size: 100
+    timeout: 10s
+
+  # Add resource attributes for identification in Kusto
+  resource:
+    attributes:
+      - key: service.name
+        value: "flink-kusto-connector"
+        action: upsert
+      - key: deployment.environment
+        value: "docker-quickstart"
+        action: upsert
+
+  # Replace NaN values with 0 to avoid ADX serialization errors
+  transform:
+    metric_statements:
+      - context: datapoint
+        statements:
+          - set(value_double, 0.0) where value_double != value_double
+
+  # Keep only Flink Kusto sink metrics and key Flink operator metrics
+  filter:
+    metrics:
+      include:
+        match_type: regexp
+        metric_names:
+          # Kusto connector custom metrics
+          - "^flink_taskmanager_job_task_operator_succeededIngestions$"
+          - "^flink_taskmanager_job_task_operator_failedIngestions$"
+          - "^flink_taskmanager_job_task_operator_partialSucceededIngestions$"
+          - "^flink_taskmanager_job_task_operator_recordsSent$"
+          - "^flink_taskmanager_job_task_operator_bytesSent$"
+          - "^flink_taskmanager_job_task_operator_blobsUploaded$"
+          - "^flink_taskmanager_job_task_operator_ingestionLatencyMs.*"
+          - "^flink_taskmanager_job_task_operator_blobUploadLatencyMs.*"
+          - "^flink_taskmanager_job_task_operator_ingestionSucceeded$"
+          - "^flink_taskmanager_job_task_operator_ingestionFailed$"
+          # Flink built-in sink metrics
+          - "^flink_taskmanager_job_task_operator_numRecordsSend$"
+          - "^flink_taskmanager_job_task_operator_numBytesSend$"
+          - "^flink_taskmanager_job_task_operator_numRecordsSendErrors$"
+          - "^flink_taskmanager_job_task_operator_currentSendTime$"
+          # Flink built-in committer metrics
+          - "^flink_taskmanager_job_task_operator_numCommittablesTotal$"
+          - "^flink_taskmanager_job_task_operator_numCommittablesSuccess$"
+          - "^flink_taskmanager_job_task_operator_numCommittablesFailure$"
+          - "^flink_taskmanager_job_task_operator_numCommittablesRetry$"
+          # Flink job-level metrics
+          - "^flink_taskmanager_job_task_operator_numRecordsIn$"
+          - "^flink_taskmanager_job_task_operator_numRecordsOut$"
+          - "^flink_taskmanager_job_task_numBytesInLocal.*"
+          - "^flink_taskmanager_job_task_numBytesOut.*"
+          # Flink checkpoint metrics
+          - "^flink_jobmanager_job_numberOfCompletedCheckpoints$"
+          - "^flink_jobmanager_job_numberOfFailedCheckpoints$"
+          - "^flink_jobmanager_job_lastCheckpointDuration$"
+          - "^flink_jobmanager_job_lastCheckpointSize$"
+          # Flink uptime
+          - "^flink_jobmanager_job_uptime$"
+          - "^flink_jobmanager_job_restartingTime$"
+
+exporters:
+  # Export metrics to Azure Data Explorer (Kusto)
+  azuredataexplorer:
+    cluster_uri: ${env:OTEL_KUSTO_CLUSTER_URL}
+    application_id: ${env:OTEL_KUSTO_APP_ID}
+    application_key: ${env:OTEL_KUSTO_APP_KEY}
+    tenant_id: ${env:OTEL_KUSTO_TENANT_ID}
+    db_name: ${env:OTEL_KUSTO_DATABASE}
+    metrics_table_name: ${env:OTEL_KUSTO_METRICS_TABLE}
+    ingestion_type: "managed"
+
+  # Log to stdout for debugging
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: [filter, transform, batch, resource]
+      exporters: [azuredataexplorer, debug]
+
+  telemetry:
+    logs:
+      level: info

@@ -26,3 +26,28 @@ FlinkQuickstart | count
 // After ingestion, query sample data with:
 // FlinkQuickstart | take 10
 // FlinkQuickstart | summarize count(), avg(value), min(value), max(value) by sensor
+
+// =============================================================================
+// OTEL Metrics Table - for Flink metrics exported via OTEL Collector
+// =============================================================================
+// This table stores metrics scraped from Flink's Prometheus reporter by the
+// OTEL Collector. The schema must match the OTEL Azure Data Explorer exporter.
+
+.create-merge table OTELMetrics (
+    Timestamp: datetime,
+    MetricName: string,
+    MetricType: string,
+    MetricUnit: string,
+    MetricDescription: string,
+    MetricValue: real,
+    Host: string,
+    ResourceAttributes: dynamic,
+    MetricAttributes: dynamic
+)
+
+// Set a batching policy for faster ingestion during quickstart
+.alter table OTELMetrics policy ingestionbatching
+    '{ "MaximumBatchingTimeSpan": "00:00:30" }'
+
+// After OTEL export, check Flink metrics with:
+// OTELMetrics | where MetricName startswith "flink_taskmanager_job_task_operator_" | project Timestamp, MetricName, MetricValue | order by Timestamp desc | take 50

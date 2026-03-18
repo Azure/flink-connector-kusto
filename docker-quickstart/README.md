@@ -159,6 +159,47 @@ FlinkQuickstart
 | summarize count(), avg(value), min(value), max(value) by sensor
 ```
 
+### 8. View Grafana Dashboard
+
+Grafana starts with a pre-provisioned **Flink Kusto Sink Metrics** dashboard.
+
+1. Open [http://localhost:3000](http://localhost:3000)
+2. Login with `admin` / `admin`
+3. Navigate to **Dashboards → Flink → Flink Kusto Sink Metrics**
+
+Dashboard panels:
+
+| Panel | Description |
+|---|---|
+| Records Sent to Kusto | Time series of records written |
+| Bytes Sent to Blob Storage | CSV bytes uploaded |
+| Ingestion Successes / Failures | Ingestion outcome counters |
+| Blobs Uploaded | Blob upload count over time |
+| Ingestion Latency (ms) | p50/p95/p99 ingestion poll latency |
+| Blob Upload Latency (ms) | Serialization + upload latency |
+| Send Latency | Current send time gauge |
+| Flink Job Health | Uptime, checkpoint stats |
+| All Metrics | Table view of latest values |
+
+> The Grafana ADX datasource is auto-configured using the same credentials
+> from `.env`. The Service Principal needs at least **Viewer** role on the database.
+
+### 9. Import Kusto Web Explorer Dashboard
+
+A pre-built Azure Data Explorer dashboard is provided for use directly in
+[Kusto Web Explorer](https://dataexplorer.azure.com).
+
+**Two pages:** Kusto Sink (records, bytes, ingestion, latency, blobs) and
+Flink Job Health (uptime, checkpoints).
+
+**To import:**
+
+1. Open [Kusto Web Explorer](https://dataexplorer.azure.com)
+2. Go to **Dashboards** → **New dashboard** → **Import dashboard from file**
+3. Select `dashboards/kusto-dashboard.json`
+4. Edit the data source: replace **Cluster URI** and **Database** with your values
+5. Click **Save**
+
 ## Customization
 
 ### Delivery Guarantee
@@ -242,12 +283,25 @@ docker-quickstart/
 ├── .gitignore                  # Ignores .env and build artifacts
 ├── README.md                   # This file
 ├── build.sh                    # Build connector + job + Docker images
+├── run.sh                      # One-shot: build, start, submit, produce
 ├── submit-job.sh               # Submit the Flink job to the cluster
 ├── produce-messages.sh         # Produce test JSON messages to Kafka
-├── docker-compose.yml          # Service orchestration (Kafka + Flink)
+├── docker-compose.yml          # Service orchestration (Kafka + Flink + OTEL + Grafana)
 ├── Dockerfile.kafka            # Kafka broker image (Strimzi KRaft)
+├── dashboards/
+│   └── kusto-dashboard.json    # Azure Data Explorer dashboard (import to Kusto Web Explorer)
+├── grafana/
+│   ├── dashboards/
+│   │   └── flink-kusto-metrics.json    # Pre-built Grafana dashboard
+│   └── provisioning/
+│       ├── dashboards/
+│       │   └── dashboard.yaml          # Dashboard provisioning config
+│       └── datasources/
+│           └── kusto.yaml              # ADX datasource provisioning config
 ├── kusto-config/
-│   └── create-table.kql        # Kusto table creation script
+│   └── create-table.kql        # Kusto table + OTELMetrics creation script
+├── otel-collector/
+│   └── otel-collector-config.yaml  # OTEL Collector pipeline config
 └── flink-job/
     ├── pom.xml                 # Maven POM for the Flink job
     └── src/main/java/com/microsoft/azure/flink/quickstart/

@@ -1,0 +1,217 @@
+{
+  "$schema": "https://dataexplorer.azure.com/static/d/schema/71/dashboard.json",
+  "schema_version": 71,
+  "id": "f1a2b3c4-d5e6-7890-abcd-ef1234567890",
+  "title": "Flink Kusto Sink Metrics",
+  "autoRefresh": {
+    "enabled": true,
+    "defaultInterval": "1m",
+    "minInterval": "30s"
+  },
+  "dataSources": [
+    {
+      "id": "ds-flink-kusto-metrics",
+      "name": "Kusto Metrics",
+      "kind": "manual-kusto",
+      "clusterUri": "https://CLUSTER.REGION.kusto.windows.net",
+      "database": "otelmetrics"
+    }
+  ],
+  "pages": [
+    {
+      "id": "page-sink-metrics",
+      "name": "Kusto Sink"
+    },
+    {
+      "id": "page-flink-health",
+      "name": "Flink Job Health"
+    }
+  ],
+  "baseQueries": [],
+  "queries": [
+    {
+      "id": "q-records-sent",
+      "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
+      "usedVariables": ["_startTime", "_endTime"],
+      "text": "OTELMetrics\n| where MetricName in ('flink_taskmanager_job_task_operator_numRecordsSend', 'flink_taskmanager_job_task_operator_recordsSent')\n| where Timestamp between (_startTime .. _endTime)\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), MetricName\n| order by Timestamp asc"
+    },
+    {
+      "id": "q-bytes-sent",
+      "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
+      "usedVariables": ["_startTime", "_endTime"],
+      "text": "OTELMetrics\n| where MetricName in ('flink_taskmanager_job_task_operator_bytesSent', 'flink_taskmanager_job_task_operator_numBytesSend')\n| where Timestamp between (_startTime .. _endTime)\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), MetricName\n| order by Timestamp asc"
+    },
+    {
+      "id": "q-ingestion-lifecycle",
+      "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
+      "usedVariables": ["_startTime", "_endTime"],
+      "text": "OTELMetrics\n| where MetricName in ('flink_taskmanager_job_task_operator_succeededIngestions', 'flink_taskmanager_job_task_operator_failedIngestions', 'flink_taskmanager_job_task_operator_partialSucceededIngestions', 'flink_taskmanager_job_task_operator_ingestionSucceeded', 'flink_taskmanager_job_task_operator_ingestionFailed')\n| where Timestamp between (_startTime .. _endTime)\n| extend Series = case(\n    MetricName has 'succeeded' or MetricName has 'Success', 'Successes',\n    MetricName has 'failed' or MetricName has 'Failed', 'Failures',\n    'Partial')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Series\n| order by Timestamp asc"
+    },
+    {
+      "id": "q-blobs-uploaded",
+      "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
+      "usedVariables": ["_startTime", "_endTime"],
+      "text": "OTELMetrics\n| where MetricName == 'flink_taskmanager_job_task_operator_blobsUploaded'\n| where Timestamp between (_startTime .. _endTime)\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s)\n| order by Timestamp asc"
+    },
+    {
+      "id": "q-ingestion-latency",
+      "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
+      "usedVariables": ["_startTime", "_endTime"],
+      "text": "OTELMetrics\n| where MetricName startswith 'flink_taskmanager_job_task_operator_ingestionLatencyMs'\n| where Timestamp between (_startTime .. _endTime)\n| extend Stat = extract('ingestionLatencyMs_(.*)', 1, MetricName)\n| where Stat in ('Mean', 'Median', 'p95', 'p99')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Stat\n| order by Timestamp asc"
+    },
+    {
+      "id": "q-blob-upload-latency",
+      "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
+      "usedVariables": ["_startTime", "_endTime"],
+      "text": "OTELMetrics\n| where MetricName startswith 'flink_taskmanager_job_task_operator_blobUploadLatencyMs'\n| where Timestamp between (_startTime .. _endTime)\n| extend Stat = extract('blobUploadLatencyMs_(.*)', 1, MetricName)\n| where Stat in ('Mean', 'Median', 'p95', 'p99')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Stat\n| order by Timestamp asc"
+    },
+    {
+      "id": "q-send-latency",
+      "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
+      "usedVariables": ["_startTime", "_endTime"],
+      "text": "OTELMetrics\n| where MetricName == 'flink_taskmanager_job_task_operator_currentSendTime'\n| where Timestamp between (_startTime .. _endTime)\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s)\n| order by Timestamp asc"
+    },
+    {
+      "id": "q-all-metrics",
+      "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
+      "usedVariables": ["_startTime", "_endTime"],
+      "text": "OTELMetrics\n| where MetricName startswith 'flink_taskmanager_job_task_operator_'\n| where Timestamp between (_startTime .. _endTime)\n| summarize LatestValue=arg_max(Timestamp, MetricValue) by MetricName\n| project MetricName, Value=MetricValue, LastUpdated=Timestamp\n| order by MetricName asc"
+    },
+    {
+      "id": "q-checkpoints",
+      "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
+      "usedVariables": ["_startTime", "_endTime"],
+      "text": "OTELMetrics\n| where MetricName in ('flink_jobmanager_job_numberOfCompletedCheckpoints', 'flink_jobmanager_job_numberOfFailedCheckpoints')\n| where Timestamp between (_startTime .. _endTime)\n| extend Series = iff(MetricName has 'Completed', 'Completed', 'Failed')\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s), Series\n| order by Timestamp asc"
+    },
+    {
+      "id": "q-checkpoint-duration",
+      "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
+      "usedVariables": ["_startTime", "_endTime"],
+      "text": "OTELMetrics\n| where MetricName == 'flink_jobmanager_job_lastCheckpointDuration'\n| where Timestamp between (_startTime .. _endTime)\n| summarize Value=max(MetricValue) by Timestamp=bin(Timestamp, 15s)\n| order by Timestamp asc"
+    },
+    {
+      "id": "q-uptime",
+      "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
+      "usedVariables": ["_startTime", "_endTime"],
+      "text": "OTELMetrics\n| where MetricName == 'flink_jobmanager_job_uptime'\n| where Timestamp between (_startTime .. _endTime)\n| top 1 by Timestamp desc\n| project Uptime=format_timespan(totimespan(MetricValue * 10000), 'dd.hh:mm:ss')"
+    },
+    {
+      "id": "q-status-tiles",
+      "dataSource": { "kind": "inline", "dataSourceId": "ds-flink-kusto-metrics" },
+      "usedVariables": ["_startTime", "_endTime"],
+      "text": "OTELMetrics\n| where Timestamp between (_startTime .. _endTime)\n| where MetricName in (\n    'flink_taskmanager_job_task_operator_numRecordsSend',\n    'flink_taskmanager_job_task_operator_bytesSent',\n    'flink_taskmanager_job_task_operator_succeededIngestions',\n    'flink_taskmanager_job_task_operator_failedIngestions',\n    'flink_taskmanager_job_task_operator_blobsUploaded',\n    'flink_taskmanager_job_task_operator_ingestionSucceeded',\n    'flink_taskmanager_job_task_operator_ingestionFailed'\n)\n| summarize LatestValue=arg_max(Timestamp, MetricValue) by MetricName\n| project Metric=replace_string(replace_string(MetricName, 'flink_taskmanager_job_task_operator_', ''), '_', ' '), Value=MetricValue"
+    }
+  ],
+  "tiles": [
+    {
+      "id": "t-records-sent",
+      "title": "Records Sent",
+      "pageId": "page-sink-metrics",
+      "queryId": "q-records-sent",
+      "visualType": "line",
+      "layout": { "x": 0, "y": 0, "width": 12, "height": 6 }
+    },
+    {
+      "id": "t-bytes-sent",
+      "title": "Bytes Sent to Blob Storage",
+      "pageId": "page-sink-metrics",
+      "queryId": "q-bytes-sent",
+      "visualType": "line",
+      "layout": { "x": 12, "y": 0, "width": 12, "height": 6 }
+    },
+    {
+      "id": "t-ingestion-lifecycle",
+      "title": "Ingestion Successes / Failures",
+      "pageId": "page-sink-metrics",
+      "queryId": "q-ingestion-lifecycle",
+      "visualType": "line",
+      "layout": { "x": 0, "y": 6, "width": 12, "height": 6 }
+    },
+    {
+      "id": "t-blobs-uploaded",
+      "title": "Blobs Uploaded",
+      "pageId": "page-sink-metrics",
+      "queryId": "q-blobs-uploaded",
+      "visualType": "line",
+      "layout": { "x": 12, "y": 6, "width": 12, "height": 6 }
+    },
+    {
+      "id": "t-ingestion-latency",
+      "title": "Ingestion Latency (ms)",
+      "pageId": "page-sink-metrics",
+      "queryId": "q-ingestion-latency",
+      "visualType": "line",
+      "layout": { "x": 0, "y": 12, "width": 12, "height": 6 }
+    },
+    {
+      "id": "t-blob-upload-latency",
+      "title": "Blob Upload Latency (ms)",
+      "pageId": "page-sink-metrics",
+      "queryId": "q-blob-upload-latency",
+      "visualType": "line",
+      "layout": { "x": 12, "y": 12, "width": 12, "height": 6 }
+    },
+    {
+      "id": "t-send-latency",
+      "title": "Current Send Time (ms)",
+      "pageId": "page-sink-metrics",
+      "queryId": "q-send-latency",
+      "visualType": "line",
+      "layout": { "x": 0, "y": 18, "width": 12, "height": 6 }
+    },
+    {
+      "id": "t-status-tiles",
+      "title": "Current Status",
+      "pageId": "page-sink-metrics",
+      "queryId": "q-status-tiles",
+      "visualType": "multistat",
+      "layout": { "x": 12, "y": 18, "width": 12, "height": 6 }
+    },
+    {
+      "id": "t-all-metrics",
+      "title": "All Kusto Sink Metrics (Latest Values)",
+      "pageId": "page-sink-metrics",
+      "queryId": "q-all-metrics",
+      "visualType": "table",
+      "layout": { "x": 0, "y": 24, "width": 24, "height": 8 }
+    },
+    {
+      "id": "t-uptime",
+      "title": "Job Uptime",
+      "pageId": "page-flink-health",
+      "queryId": "q-uptime",
+      "visualType": "multistat",
+      "layout": { "x": 0, "y": 0, "width": 8, "height": 4 }
+    },
+    {
+      "id": "t-checkpoints",
+      "title": "Checkpoints (Completed / Failed)",
+      "pageId": "page-flink-health",
+      "queryId": "q-checkpoints",
+      "visualType": "line",
+      "layout": { "x": 0, "y": 4, "width": 12, "height": 6 }
+    },
+    {
+      "id": "t-checkpoint-duration",
+      "title": "Last Checkpoint Duration (ms)",
+      "pageId": "page-flink-health",
+      "queryId": "q-checkpoint-duration",
+      "visualType": "line",
+      "layout": { "x": 12, "y": 4, "width": 12, "height": 6 }
+    }
+  ],
+  "parameters": [
+    {
+      "id": "p-startTime",
+      "name": "_startTime",
+      "type": "datetime",
+      "defaultValue": { "kind": "dynamic", "value": "1h" }
+    },
+    {
+      "id": "p-endTime",
+      "name": "_endTime",
+      "type": "datetime",
+      "defaultValue": { "kind": "dynamic", "value": "now" }
+    }
+  ]
+}
