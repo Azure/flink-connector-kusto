@@ -281,23 +281,28 @@ public class KustoSinkCommon<IN> {
       String blobName) {
     LOG.debug("Upload to blob successful , blob file {}.Performing ingestion", blobName);
     this.blobsUploadedCounter.inc();
+    final long ingestionStart = Instant.now(Clock.systemUTC()).toEpochMilli();
     IngestionResult ingestionResult = KustoRetryUtil.getRetries(KustoRetryConfig.builder().build())
         .executeSupplier(this.performIngestSupplier(uploadContainerWithSas, this.ingestionMapping,
             blobName, sourceId));
     try {
       if (writeOptions.getPollForIngestionStatus()) {
-        final Long ingestionStart = Instant.now(Clock.systemUTC()).toEpochMilli();
         final String pollResult =
             this.pollForCompletion(blobName, sourceId.toString(), ingestionResult, ingestionStart)
                 .get();
         this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
         return OperationStatus.Succeeded.name().equals(pollResult);
       } else {
-        LOG.debug("Upload to blob successful , blob file {}. Not polling for status", blobName);
+        long latencyMs = Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart;
+        LOG.debug("Upload to blob successful, blob file {}. Queued in {} ms (not polling)", blobName,
+            latencyMs);
+        this.ingestSucceededCounter.inc();
+        this.ingestionLatencyHistogram.update(latencyMs);
         this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
         return true;
       }
     } catch (InterruptedException | ExecutionException e) {
+      this.ingestFailedCounter.inc();
       LOG.error("Error while polling for completion of ingestion.", e);
       throw new RuntimeException(e);
     }
