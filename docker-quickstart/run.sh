@@ -49,7 +49,7 @@ done
 TOPIC="${KAFKA_TOPIC:-sensor-readings}"
 
 # ── Step 1: Build ────────────────────────────────────────────────────────────
-step "Step 1/6: Building connector and job JARs"
+step "Step 1/7: Building connector and job JARs"
 
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}"
@@ -61,7 +61,7 @@ cd "${SCRIPT_DIR}"
 info "Build complete."
 
 # ── Step 2: Build Docker images & start services ────────────────────────────
-step "Step 2/6: Starting Docker services"
+step "Step 2/7: Starting Docker services (Kafka, Flink, OTEL Collector, Grafana)"
 
 docker compose build --quiet
 docker compose up -d
@@ -81,14 +81,14 @@ done
 echo " Ready!"
 
 # ── Step 3: Create Kafka topic ──────────────────────────────────────────────
-step "Step 3/6: Creating Kafka topic '${TOPIC}'"
+step "Step 3/7: Creating Kafka topic '${TOPIC}'"
 
 docker exec kafka bin/kafka-topics.sh --bootstrap-server localhost:9092 \
     --create --topic "${TOPIC}" --partitions 2 --replication-factor 1 \
     --if-not-exists 2>/dev/null || true
 
 # ── Step 4: Submit Flink job ────────────────────────────────────────────────
-step "Step 4/6: Submitting Flink job"
+step "Step 4/7: Submitting Flink job"
 
 JOB_JAR=$(find flink-job/target -name "flink-kusto-quickstart-*.jar" \
     ! -name "*original*" 2>/dev/null | head -1)
@@ -119,7 +119,7 @@ info "Flink UI: http://localhost:8081/#/job/${JOB_ID}"
 sleep 5
 
 # ── Step 5: Produce messages in bursts ──────────────────────────────────────
-step "Step 5/6: Producing ${TOTAL_MESSAGES} messages in ${NUM_BURSTS} bursts of ${BURST_SIZE} (${PAUSE_SECONDS}s pause between bursts)"
+step "Step 5/7: Producing ${TOTAL_MESSAGES} messages in ${NUM_BURSTS} bursts of ${BURST_SIZE} (${PAUSE_SECONDS}s pause between bursts)"
 
 generate_batch() {
     local start=$1
@@ -155,20 +155,47 @@ done
 echo ""
 info "All ${total_sent} messages produced."
 
-# ── Step 6: Summary ─────────────────────────────────────────────────────────
-step "Step 6/6: Done!"
+# ── Step 6: Wait for metrics to flow ────────────────────────────────────────
+step "Step 6/7: Waiting for metrics to start flowing"
+
+info "Checking Flink Prometheus endpoint..."
+METRICS_OK=false
+for i in $(seq 1 10); do
+    if curl -sf http://localhost:9249/metrics 2>/dev/null | grep -q "flink_jobmanager"; then
+        METRICS_OK=true
+        break
+    fi
+    printf "."
+    sleep 3
+done
+
+if [ "$METRICS_OK" = true ]; then
+    echo " Flink metrics are being exported."
+    info "OTEL Collector is scraping and forwarding to Kusto."
+else
+    warn "Flink metrics endpoint not yet responding — OTEL will start scraping once available."
+fi
+
+# ── Step 7: Summary ─────────────────────────────────────────────────────────
+step "Step 7/7: Done!"
 
 echo ""
 echo "Pipeline is running:"
 echo "  Kafka topic:  ${TOPIC} (${total_sent} messages)"
 echo "  Flink job:    ${JOB_ID}"
 echo "  Flink UI:     http://localhost:8081"
+echo "  Grafana:      http://localhost:3000  (admin/admin)"
+echo "  Prometheus:   http://localhost:9249/metrics"
 echo ""
 echo "Data should appear in Kusto within ~60 seconds."
-echo "Query it with:"
+echo "Metrics appear in OTELMetrics table within ~30 seconds."
 echo ""
+echo "Query data:"
 echo "  ${KUSTO_TABLE} | take 10"
 echo "  ${KUSTO_TABLE} | summarize count(), avg(value) by sensor"
+echo ""
+echo "Query metrics:"
+echo "  OTELMetrics | where MetricName startswith 'flink_taskmanager_job_task_operator_' | summarize arg_max(Timestamp, MetricValue) by MetricName"
 echo ""
 echo "To stop:  docker compose down"
 echo "Cleanup:  docker compose down -v"
