@@ -76,13 +76,13 @@ services:
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         rest.address: 0.0.0.0
-        state.checkpoints.dir: file:///opt/flink/checkpoints
-        execution.checkpointing.interval: 60000
+        state.backend: hashmap
+        state.checkpoints.dir: file:///tmp/flink-checkpoints
+        state.savepoints.dir: file:///tmp/flink-savepoints
         metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
         metrics.reporter.prom.port: 9249
     volumes:
       - ./flink-job/target:/opt/flink-jobs:ro
-      - flink-checkpoints:/opt/flink/checkpoints
     networks:
       - flink-kusto-network
 
@@ -102,11 +102,11 @@ services:
         FLINK_PROPERTIES=
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 4
-        state.checkpoints.dir: file:///opt/flink/checkpoints
+        state.backend: hashmap
+        state.checkpoints.dir: file:///tmp/flink-checkpoints
+        state.savepoints.dir: file:///tmp/flink-savepoints
         metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
         metrics.reporter.prom.port: 9249
-    volumes:
-      - flink-checkpoints:/opt/flink/checkpoints
     networks:
       - flink-kusto-network
 
@@ -163,5 +163,4 @@ networks:
     driver: bridge
 
 volumes:
-  flink-checkpoints:
   grafana-storage:
