@@ -62,8 +62,8 @@ public class KustoSinkCommitter implements Committer<KustoCommittable> {
   private final Histogram ingestionLatencyHistogram;
 
   public KustoSinkCommitter(KustoConnectionOptions connectionOptions,
-      KustoWriteOptions writeOptions, String[] pojoFieldNames,
-      SinkCommitterMetricGroup metricGroup) throws URISyntaxException {
+      KustoWriteOptions writeOptions, String[] pojoFieldNames, SinkCommitterMetricGroup metricGroup)
+      throws URISyntaxException {
     this.connectionOptions = checkNotNull(connectionOptions);
     this.writeOptions = checkNotNull(writeOptions);
     this.ingestClient = KustoClientUtil.createIngestClient(connectionOptions,
@@ -164,8 +164,7 @@ public class KustoSinkCommitter implements Committer<KustoCommittable> {
             .filter(s -> s.getIngestionSourceId().toString().equals(sourceId)).findFirst()
             .ifPresent(status -> {
               if (status.status == OperationStatus.Succeeded) {
-                long latencyMs =
-                    Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart;
+                long latencyMs = Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart;
                 ingestionSucceededCounter.inc();
                 ingestionLatencyHistogram.update(latencyMs);
                 LOG.info("Ingestion succeeded for blob {} in {} ms", committable.getBlobName(),

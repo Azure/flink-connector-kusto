@@ -296,8 +296,8 @@ public class KustoSinkCommon<IN> {
         return OperationStatus.Succeeded.name().equals(pollResult);
       } else {
         long latencyMs = Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart;
-        LOG.debug("Upload to blob successful, blob file {}. Queued in {} ms (not polling)", blobName,
-            latencyMs);
+        LOG.debug("Upload to blob successful, blob file {}. Queued in {} ms (not polling)",
+            blobName, latencyMs);
         this.successfullyQueuedCounter.inc();
         this.ingestionLatencyHistogram.update(latencyMs);
         this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
@@ -335,8 +335,7 @@ public class KustoSinkCommon<IN> {
             .findFirst().ifPresent(ingestionStatus -> {
               if (ingestionStatus.status == OperationStatus.Succeeded) {
                 this.ingestSucceededCounter.inc();
-                long latencyMs =
-                    Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart;
+                long latencyMs = Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart;
                 this.ingestionLatencyHistogram.update(latencyMs);
                 completionFuture.complete(ingestionStatus.status.name());
                 LOG.info("Ingestion for blob {} took {} ms for state change to Succeeded", blobName,
