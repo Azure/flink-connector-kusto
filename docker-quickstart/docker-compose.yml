@@ -1,0 +1,166 @@
+# Docker Compose for Flink Kusto Connector Quickstart
+#
+# Architecture:
+#   Kafka (Strimzi KRaft) -> Flink (JobManager + TaskManager) -> Azure Data Explorer
+#                                    |
+#                             Prometheus metrics (:9249)
+#                                    |
+#                             OTEL Collector -> Azure Data Explorer (metrics)
+#                                    |
+#                             Grafana Dashboard (:3000)
+#
+# Usage:
+#   1. Copy .env.example to .env and fill in your Kusto credentials
+#   2. Build: ./build.sh
+#   3. Start: docker compose up -d
+#   4. Submit job: ./submit-job.sh
+#   5. Produce messages: ./produce-messages.sh
+#   6. View Flink UI: http://localhost:8081
+#   7. View Grafana: http://localhost:3000 (admin/admin)
+#
+# Ports exposed:
+#   - 29092: Kafka broker (external)
+#   - 8081:  Flink Web UI
+#   - 9249:  Flink Prometheus metrics
+#   - 3000:  Grafana dashboard
+
+services:
+  # ---------------------------------------------------------------------------
+  # Kafka broker (Strimzi image, KRaft mode - no ZooKeeper needed)
+  # ---------------------------------------------------------------------------
+  kafka:
+    build:
+      context: .
+      dockerfile: Dockerfile.kafka
+    container_name: kafka
+    command:
+      - "sh"
+      - "-c"
+      - |
+        export CLUSTER_ID=$$(bin/kafka-storage.sh random-uuid) && \
+        bin/kafka-storage.sh format -t $$CLUSTER_ID -c config/kraft/server.properties && \
+        bin/kafka-server-start.sh config/kraft/server.properties \
+          --override advertised.listeners=PLAINTEXT://kafka:9092,EXTERNAL://localhost:29092 \
+          --override listeners=PLAINTEXT://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093 \
+          --override listener.security.protocol.map=PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT \
+          --override inter.broker.listener.name=PLAINTEXT \
+          --override controller.listener.names=CONTROLLER \
+          --override controller.quorum.voters=1@kafka:9093 \
+          --override node.id=1 \
+          --override process.roles=broker,controller
+    ports:
+      - "29092:29092"
+    environment:
+      LOG_DIR: /tmp/logs
+    networks:
+      - flink-kusto-network
+    healthcheck:
+      test: ["CMD-SHELL", "bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Flink JobManager with Prometheus metrics reporter
+  # ---------------------------------------------------------------------------
+  jobmanager:
+    image: flink:1.20.0-java11
+    container_name: flink-jobmanager
+    command: jobmanager
+    ports:
+      - "8081:8081"
+      - "9249:9249"
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        rest.address: 0.0.0.0
+        state.backend: hashmap
+        state.checkpoints.dir: file:///tmp/flink-checkpoints
+        state.savepoints.dir: file:///tmp/flink-savepoints
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: 9249
+    volumes:
+      - ./flink-job/target:/opt/flink-jobs:ro
+    networks:
+      - flink-kusto-network
+
+  # ---------------------------------------------------------------------------
+  # Flink TaskManager with Prometheus metrics reporter
+  # ---------------------------------------------------------------------------
+  taskmanager:
+    image: flink:1.20.0-java11
+    container_name: flink-taskmanager
+    command: taskmanager
+    depends_on:
+      - jobmanager
+    ports:
+      - "9250:9249"
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        state.backend: hashmap
+        state.checkpoints.dir: file:///tmp/flink-checkpoints
+        state.savepoints.dir: file:///tmp/flink-savepoints
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: 9249
+    networks:
+      - flink-kusto-network
+
+  # ---------------------------------------------------------------------------
+  # OpenTelemetry Collector Contrib
+  # Scrapes Prometheus metrics from Flink and exports to Azure Data Explorer
+  # ---------------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.146.0
+    container_name: otel-collector
+    depends_on:
+      - jobmanager
+      - taskmanager
+    volumes:
+      - ./otel-collector/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    environment:
+      - OTEL_KUSTO_CLUSTER_URL=${KUSTO_CLUSTER_URL}
+      - OTEL_KUSTO_DATABASE=${KUSTO_DATABASE}
+      - OTEL_KUSTO_METRICS_TABLE=${KUSTO_METRICS_TABLE:-OTELMetrics}
+      - OTEL_KUSTO_APP_ID=${KUSTO_APP_ID}
+      - OTEL_KUSTO_APP_KEY=${KUSTO_APP_KEY}
+      - OTEL_KUSTO_TENANT_ID=${KUSTO_TENANT_ID}
+    networks:
+      - flink-kusto-network
+
+  # ---------------------------------------------------------------------------
+  # Grafana with Azure Data Explorer plugin
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: grafana
+    depends_on:
+      - otel-collector
+    ports:
+      - "3000:3000"
+    environment:
+      GF_INSTALL_PLUGINS: grafana-azure-data-explorer-datasource
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GRAFANA_ADX_CLUSTER_URL: ${KUSTO_CLUSTER_URL}
+      GRAFANA_ADX_TENANT_ID: ${KUSTO_TENANT_ID}
+      GRAFANA_ADX_CLIENT_ID: ${KUSTO_APP_ID}
+      GRAFANA_ADX_CLIENT_SECRET: ${KUSTO_APP_KEY}
+      GRAFANA_ADX_DATABASE: ${KUSTO_DATABASE}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - flink-kusto-network
+
+networks:
+  flink-kusto-network:
+    driver: bridge
+
+volumes:
+  grafana-storage:

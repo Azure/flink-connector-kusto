@@ -72,7 +72,8 @@ public class KustoTwoPhaseCommittingSink<IN>
     LOG.info("Creating KustoSinkCommitter for DB {} in cluster {}", writeOptions.getDatabase(),
         connectionOptions.getClusterUrl());
     try {
-      return new KustoSinkCommitter(connectionOptions, writeOptions, pojoFieldNames);
+      return new KustoSinkCommitter(connectionOptions, writeOptions, pojoFieldNames,
+          context.metricGroup());
     } catch (Exception e) {
       throw new IOException("Failed to create KustoSinkCommitter", e);
     }

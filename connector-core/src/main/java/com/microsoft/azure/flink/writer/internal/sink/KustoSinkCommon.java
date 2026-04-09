@@ -30,7 +30,9 @@ import org.apache.flink.api.java.typeutils.runtime.RowSerializer;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.api.scala.typeutils.CaseClassSerializer;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.apache.flink.types.Row;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -64,13 +66,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class KustoSinkCommon<IN> {
   private final KustoWriteOptions writeOptions;
   protected static final Logger LOG = LoggerFactory.getLogger(KustoSinkCommon.class);
+  private static final int HISTOGRAM_WINDOW_SIZE = 1000;
   private final transient Counter ingestSucceededCounter;
   private final transient Counter ingestFailedCounter;
   private final transient Counter ingestPartiallyFailedCounter;
+  private final transient Counter successfullyQueuedCounter;
   private final transient Counter recordsSent;
+  private final transient Counter bytesSentCounter;
+  private final transient Counter blobsUploadedCounter;
+  private final transient Histogram ingestionLatencyHistogram;
   private final ScheduledExecutorService pollResultsExecutor =
       Executors.newSingleThreadScheduledExecutor();
   private transient final IngestClient ingestClient;
+  private final ContainerProvider containerProvider;
   private final KustoConnectionOptions connectionOptions;
   protected final transient Supplier<Integer> aritySupplier;
   protected final transient BiFunction<IN, Integer, Object> extractFieldValueFunction;
@@ -86,10 +94,16 @@ public class KustoSinkCommon<IN> {
     this.writeOptions = writeOptions;
     this.ingestClient = KustoClientUtil.createIngestClient(checkNotNull(connectionOptions,
         "Connection options passed to ingest client cannot be null."), sourceClass);
-    this.ingestSucceededCounter = metricGroup.counter("succeededIngestions");
+    this.containerProvider = new ContainerProvider.Builder(connectionOptions).build();
+    this.ingestSucceededCounter = metricGroup.counter("successfullyIngested");
     this.ingestFailedCounter = metricGroup.counter("failedIngestions");
     this.ingestPartiallyFailedCounter = metricGroup.counter("partialSucceededIngestions");
+    this.successfullyQueuedCounter = metricGroup.counter("successfullyQueued");
     this.recordsSent = metricGroup.counter("recordsSent");
+    this.bytesSentCounter = metricGroup.counter("bytesSent");
+    this.blobsUploadedCounter = metricGroup.counter("blobsUploaded");
+    this.ingestionLatencyHistogram = metricGroup.histogram("ingestionLatencyMs",
+        new DescriptiveStatisticsHistogram(HISTOGRAM_WINDOW_SIZE));
     Class<?> clazzType = serializer.createInstance().getClass();
     LOG.trace("Using sink with class type: {}", clazzType);
     if (Tuple.class.isAssignableFrom(clazzType)) {
@@ -196,9 +210,7 @@ public class KustoSinkCommon<IN> {
     if (bulkRequests == null) {
       return true;
     }
-    ContainerProvider containerProvider =
-        new ContainerProvider.Builder(this.connectionOptions).build();
-    ContainerWithSas uploadContainerWithSas = containerProvider.getBlobContainer();
+    ContainerWithSas uploadContainerWithSas = this.containerProvider.getBlobContainer();
     BlobContainerClient blobContainerClient =
         new BlobContainerClientBuilder().endpoint(uploadContainerWithSas.getEndpointWithoutSas())
             .sasToken(uploadContainerWithSas.getSas()).buildClient();
@@ -225,7 +237,9 @@ public class KustoSinkCommon<IN> {
         for (int i = 0; i < arity; i++) {
           Object fieldValue = this.extractFieldValueFunction.apply(value, i);
           if (fieldValue != null) {
-            compressedBlob.write(StringEscapeUtils.escapeCsv(fieldValue.toString()).getBytes());
+            byte[] csvBytes = StringEscapeUtils.escapeCsv(fieldValue.toString()).getBytes();
+            bytesSentCounter.inc(csvBytes.length);
+            compressedBlob.write(csvBytes);
           }
           if (i < arity - 1) {
             compressedBlob.write(",".getBytes());
@@ -268,23 +282,29 @@ public class KustoSinkCommon<IN> {
   private boolean uploadAndPollStatus(ContainerWithSas uploadContainerWithSas, UUID sourceId,
       String blobName) {
     LOG.debug("Upload to blob successful , blob file {}.Performing ingestion", blobName);
+    this.blobsUploadedCounter.inc();
+    final long ingestionStart = Instant.now(Clock.systemUTC()).toEpochMilli();
     IngestionResult ingestionResult = KustoRetryUtil.getRetries(KustoRetryConfig.builder().build())
         .executeSupplier(this.performIngestSupplier(uploadContainerWithSas, this.ingestionMapping,
             blobName, sourceId));
     try {
       if (writeOptions.getPollForIngestionStatus()) {
-        final Long ingestionStart = Instant.now(Clock.systemUTC()).toEpochMilli();
         final String pollResult =
             this.pollForCompletion(blobName, sourceId.toString(), ingestionResult, ingestionStart)
                 .get();
         this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
         return OperationStatus.Succeeded.name().equals(pollResult);
       } else {
-        LOG.debug("Upload to blob successful , blob file {}. Not polling for status", blobName);
+        long latencyMs = Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart;
+        LOG.debug("Upload to blob successful, blob file {}. Queued in {} ms (not polling)",
+            blobName, latencyMs);
+        this.successfullyQueuedCounter.inc();
+        this.ingestionLatencyHistogram.update(latencyMs);
         this.ackTime = Instant.now(Clock.systemUTC()).toEpochMilli();
         return true;
       }
     } catch (InterruptedException | ExecutionException e) {
+      this.ingestFailedCounter.inc();
       LOG.error("Error while polling for completion of ingestion.", e);
       throw new RuntimeException(e);
     }
@@ -315,9 +335,11 @@ public class KustoSinkCommon<IN> {
             .findFirst().ifPresent(ingestionStatus -> {
               if (ingestionStatus.status == OperationStatus.Succeeded) {
                 this.ingestSucceededCounter.inc();
+                long latencyMs = Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart;
+                this.ingestionLatencyHistogram.update(latencyMs);
                 completionFuture.complete(ingestionStatus.status.name());
                 LOG.info("Ingestion for blob {} took {} ms for state change to Succeeded", blobName,
-                    Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart);
+                    latencyMs);
               } else if (ingestionStatus.status == OperationStatus.Failed) {
                 this.ingestFailedCounter.inc();
                 String failureReason = String.format(

@@ -16,6 +16,10 @@ import java.util.concurrent.TimeoutException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
+import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,20 +49,30 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class KustoSinkCommitter implements Committer<KustoCommittable> {
   private static final Logger LOG = LoggerFactory.getLogger(KustoSinkCommitter.class);
 
+  private static final int HISTOGRAM_WINDOW_SIZE = 1000;
+
   private final KustoConnectionOptions connectionOptions;
   private final KustoWriteOptions writeOptions;
   private final IngestClient ingestClient;
   private final IngestionMapping pojoIngestionMapping;
   private final ScheduledExecutorService pollExecutor =
       Executors.newSingleThreadScheduledExecutor();
+  private final Counter ingestionSucceededCounter;
+  private final Counter ingestionFailedCounter;
+  private final Histogram ingestionLatencyHistogram;
 
   public KustoSinkCommitter(KustoConnectionOptions connectionOptions,
-      KustoWriteOptions writeOptions, String[] pojoFieldNames) throws URISyntaxException {
+      KustoWriteOptions writeOptions, String[] pojoFieldNames, SinkCommitterMetricGroup metricGroup)
+      throws URISyntaxException {
     this.connectionOptions = checkNotNull(connectionOptions);
     this.writeOptions = checkNotNull(writeOptions);
     this.ingestClient = KustoClientUtil.createIngestClient(connectionOptions,
         KustoSinkCommitter.class.getSimpleName());
     this.pojoIngestionMapping = (pojoFieldNames != null) ? createPojoMapping(pojoFieldNames) : null;
+    this.ingestionSucceededCounter = metricGroup.counter("ingestionSucceeded");
+    this.ingestionFailedCounter = metricGroup.counter("ingestionFailed");
+    this.ingestionLatencyHistogram = metricGroup.histogram("ingestionLatencyMs",
+        new DescriptiveStatisticsHistogram(HISTOGRAM_WINDOW_SIZE));
   }
 
   private static IngestionMapping createPojoMapping(String[] pojoFields) {
@@ -150,10 +164,14 @@ public class KustoSinkCommitter implements Committer<KustoCommittable> {
             .filter(s -> s.getIngestionSourceId().toString().equals(sourceId)).findFirst()
             .ifPresent(status -> {
               if (status.status == OperationStatus.Succeeded) {
+                long latencyMs = Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart;
+                ingestionSucceededCounter.inc();
+                ingestionLatencyHistogram.update(latencyMs);
                 LOG.info("Ingestion succeeded for blob {} in {} ms", committable.getBlobName(),
-                    Instant.now(Clock.systemUTC()).toEpochMilli() - ingestionStart);
+                    latencyMs);
                 completionFuture.complete(status.status.name());
               } else if (status.status == OperationStatus.Failed) {
+                ingestionFailedCounter.inc();
                 completionFuture
                     .completeExceptionally(new RuntimeException("Ingestion failed for blob "
                         + committable.getBlobName() + ": " + status.getFailureStatus()));
