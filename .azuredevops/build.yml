@@ -11,6 +11,9 @@ pr:
 pool:
   vmImage: ubuntu-latest
 
+variables:
+- group: flink-connector-kusto-e2e
+
 jobs:
 - job: BuildAndUnitTest
   displayName: Build and unit test

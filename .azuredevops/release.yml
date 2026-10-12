@@ -25,6 +25,9 @@ parameters:
 pool:
   vmImage: ubuntu-latest
 
+variables:
+- group: flink-connector-kusto-release
+
 jobs:
 - job: Release
   displayName: Build and publish release
@@ -134,17 +137,21 @@ jobs:
       addChangeLog: true
     continueOnError: true
 
-  - bash: |
-      set -euo pipefail
-
-      azcopy copy \
-        "$(Build.SourcesDirectory)/staging/*" \
-        "https://azuresdkpartnerdrops.blob.core.windows.net/drops/kusto/flink/$(PROJECT_VERSION)/" \
-        --recursive=false
+  - task: AzureCLI@2
     displayName: Upload artifacts to Azure Storage
     condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/tags/'), ${{ eq(parameters.uploadToAzure, true) }}))
-    env:
-      AZCOPY_AUTO_LOGIN_TYPE: SPN
-      AZCOPY_SPA_APPLICATION_ID: $(STORAGE_APP_ID)
-      AZCOPY_SPA_CLIENT_SECRET: $(AZCOPY_SPA_CLIENT_SECRET)
-      AZCOPY_TENANT_ID: $(AZCOPY_TENANT_ID)
+    inputs:
+      azureSubscription: azuresdkpartnerdrops-spark
+      scriptType: bash
+      scriptLocation: inlineScript
+      workingDirectory: $(Build.SourcesDirectory)
+      inlineScript: |
+        set -euo pipefail
+
+        az storage blob upload-batch \
+          --account-name "$(AZURE_STORAGE_ACCOUNT)" \
+          --destination "$(AZURE_STORAGE_CONTAINER)" \
+          --destination-path "$(AZURE_STORAGE_PATH_PREFIX)/$(PROJECT_VERSION)" \
+          --source staging \
+          --auth-mode login \
+          --overwrite
