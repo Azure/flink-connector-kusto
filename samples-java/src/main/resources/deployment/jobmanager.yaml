@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: master
-          image: flink:1.17.1-scala_2.12
+          image: <your-registry>.azurecr.io/flink:1.17.1-scala_2.12
           workingDir: /opt/flink
           args:
             - jobmanager

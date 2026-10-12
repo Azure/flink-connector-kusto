@@ -65,7 +65,7 @@ jobs:
 - job: KustoIntegrationTest
   displayName: Kusto integration tests
   dependsOn: BuildAndUnitTest
-  condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  condition: and(succeeded(), ne(variables['System.PullRequest.IsFork'], 'True'))
   timeoutInMinutes: 90
   steps:
   - checkout: self
