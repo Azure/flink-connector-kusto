@@ -15,6 +15,7 @@ spec:
     spec:
       containers:
         - name: task
+          # <your-registry> is substituted by deploy.sh from the IMAGE_REGISTRY env var
           image: <your-registry>.azurecr.io/flink:1.17.1-scala_2.12
           workingDir: /opt/flink
           args:
