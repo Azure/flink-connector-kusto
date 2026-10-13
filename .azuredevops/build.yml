@@ -1,14 +1,122 @@
-# Temporary Azure Pipelines bootstrap for .github/workflows/build.yml
-
 trigger:
-- main
+  branches:
+    include:
+    - '*'
 
 pr:
-- main
+  branches:
+    include:
+    - '*'
 
 pool:
   vmImage: ubuntu-latest
 
-steps:
-- script: echo "Hello from Azure Pipelines"
-  displayName: Hello world
+variables:
+- group: flink-connector-kusto-e2e
+
+jobs:
+- job: BuildAndUnitTest
+  displayName: Build and unit test
+  timeoutInMinutes: 60
+  steps:
+  - checkout: self
+    clean: true
+
+  - task: JavaToolInstaller@0
+    displayName: Use Java 11
+    inputs:
+      versionSpec: '11'
+      jdkArchitectureOption: x64
+      jdkSourceOption: PreInstalled
+
+  - task: Cache@2
+    displayName: Cache Maven dependencies
+    inputs:
+      key: 'maven | "$(Agent.OS)" | **/pom.xml'
+      restoreKeys: |
+        maven | "$(Agent.OS)"
+        maven
+      path: $(Pipeline.Workspace)/.m2/repository
+
+  - bash: >
+      mvn clean compile test-compile formatter:validate test
+      -B
+      -U
+      -am
+    displayName: Build and run unit tests
+    env:
+      MAVEN_OPTS: -Dmaven.repo.local=$(Pipeline.Workspace)/.m2/repository
+
+  - task: PublishTestResults@2
+    displayName: Publish unit test results
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: JUnit
+      testResultsFiles: '**/target/surefire-reports/TEST*.xml'
+      testRunTitle: Flink connector unit tests
+      failTaskOnMissingResultsFile: true
+
+  - task: PublishCodeCoverageResults@2
+    displayName: Publish unit test coverage
+    condition: succeededOrFailed()
+    inputs:
+      summaryFileLocation: '**/target/site/jacoco-unit-test-coverage-report/jacoco.xml'
+
+- job: KustoIntegrationTest
+  displayName: Kusto integration tests
+  dependsOn: BuildAndUnitTest
+  condition: and(succeeded(), ne(variables['System.PullRequest.IsFork'], 'True'))
+  timeoutInMinutes: 90
+  steps:
+  - checkout: self
+    clean: true
+
+  - task: JavaToolInstaller@0
+    displayName: Use Java 11
+    inputs:
+      versionSpec: '11'
+      jdkArchitectureOption: x64
+      jdkSourceOption: PreInstalled
+
+  - task: Cache@2
+    displayName: Cache Maven dependencies
+    inputs:
+      key: 'maven | "$(Agent.OS)" | **/pom.xml'
+      restoreKeys: |
+        maven | "$(Agent.OS)"
+        maven
+      path: $(Pipeline.Workspace)/.m2/repository
+
+  - task: AzureCLI@2
+    displayName: Run Kusto integration tests
+    inputs:
+      azureSubscription: kusto-connectors-arm-sc
+      scriptType: bash
+      scriptLocation: inlineScript
+      workingDirectory: $(Build.SourcesDirectory)
+      inlineScript: >
+        mvn clean compile test-compile formatter:validate verify
+        -B
+        -U
+        -am
+        -Dcluster="$(CLUSTER_URL)"
+        -Ddatabase="$(DATABASE_NAME)"
+    env:
+      MAVEN_OPTS: -Dmaven.repo.local=$(Pipeline.Workspace)/.m2/repository
+
+  - task: PublishTestResults@2
+    displayName: Publish integration test results
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: JUnit
+      testResultsFiles: |
+        **/target/surefire-reports/TEST*.xml
+        **/target/failsafe-reports/TEST*.xml
+      testRunTitle: Flink connector integration tests
+      failTaskOnMissingResultsFile: true
+
+  - task: PublishCodeCoverageResults@2
+    displayName: Publish merged test coverage
+    condition: succeededOrFailed()
+    inputs:
+      summaryFileLocation: '**/target/site/jacoco-merged-test-coverage-report/jacoco.xml'
