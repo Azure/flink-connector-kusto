@@ -14,7 +14,7 @@ parameters:
   type: string
   default: ''
 - name: createGitHubRelease
-  displayName: Create the GitHub release
+  displayName: Upload assets to the existing GitHub release (must already exist)
   type: boolean
   default: false
 - name: uploadToAzure
@@ -119,23 +119,18 @@ jobs:
       artifact: release
 
   - task: GitHubRelease@1
-    displayName: Create GitHub release
-    condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/tags/'), ${{ eq(parameters.createGitHubRelease, true) }}))
+    displayName: Upload assets to existing GitHub release
+    condition: and(succeeded(), or(and(startsWith(variables['Build.SourceBranch'], 'refs/tags/'), ne(variables['Build.Reason'], 'Manual')), ${{ eq(parameters.createGitHubRelease, true) }}))
     inputs:
       gitHubConnection: $(GITHUB_SERVICE_CONNECTION)
       repositoryName: Azure/flink-connector-kusto
-      action: create
-      target: $(RELEASE_COMMIT)
+      action: edit
       tagSource: userSpecifiedTag
       tag: $(RELEASE_TAG)
-      title: $(RELEASE_TAG)
-      releaseNotesSource: inline
-      releaseNotesInline: Release $(RELEASE_TAG)
+      assetUploadMode: replace
       assets: |
         $(Build.SourcesDirectory)/staging/*.jar
         $(Build.SourcesDirectory)/staging/*.pom
-      addChangeLog: true
-    continueOnError: true
 
   - task: AzureCLI@2
     displayName: Upload artifacts to Azure Storage
