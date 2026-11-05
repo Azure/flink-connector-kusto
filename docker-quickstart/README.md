@@ -10,7 +10,7 @@ flink-connector-kusto.
 ┌──────────────────┐     ┌─────────────────────────────┐     ┌──────────────────┐
 │                  │     │  Apache Flink                │     │                  │
 │  Kafka           │────>│  KafkaSource (JSON)          │────>│  Azure Data      │
-│  (Strimzi KRaft) │     │  -> KustoWriteSink (CSV)     │     │  Explorer        │
+│  (Apache KRaft)  │     │  -> KustoWriteSink (CSV)     │     │  Explorer        │
 │                  │     │                              │     │                  │
 └──────────────────┘     │  JobManager (:8081)          │     └──────────────────┘
                          │  TaskManager (4 slots)       │
@@ -21,7 +21,7 @@ flink-connector-kusto.
 
 | Service | Image | Description | Ports |
 |---|---|---|---|
-| `kafka` | Strimzi (KRaft) | Kafka broker, no ZooKeeper | 29092 |
+| `kafka` | Apache Kafka (KRaft) | Kafka broker, no ZooKeeper | 29092 |
 | `jobmanager` | `flink:1.20.0-java11` | Flink Job Manager + Web UI | 8081 |
 | `taskmanager` | `flink:1.20.0-java11` | Flink Task Manager (4 slots) | — |
 
@@ -305,7 +305,7 @@ docker-quickstart/
 ├── submit-job.sh               # Submit the Flink job to the cluster
 ├── produce-messages.sh         # Produce test JSON messages to Kafka
 ├── docker-compose.yml          # Service orchestration (Kafka + Flink + OTEL + Grafana)
-├── Dockerfile.kafka            # Kafka broker image (Strimzi KRaft)
+├── Dockerfile.kafka            # Kafka broker image (Apache Kafka KRaft on MCR OpenJDK)
 ├── dashboards/
 │   └── kusto-dashboard.json    # Azure Data Explorer dashboard (import to Kusto Web Explorer)
 ├── grafana/
